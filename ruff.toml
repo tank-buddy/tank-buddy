@@ -1,0 +1,2 @@
+include = ["./src/**/*.py"]
+exclude = ["./src/external/**/*.py"]

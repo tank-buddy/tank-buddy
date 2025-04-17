@@ -1,0 +1,11 @@
+.idea
+.vscode
+
+.DS_Store
+
+.ruff_cache
+typings
+
+dist
+
+conf.json

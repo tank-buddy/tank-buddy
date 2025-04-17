@@ -1,0 +1,17 @@
+FROM python:alpine
+
+RUN apk add --no-cache bash \
+    && pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir ruff
+
+RUN addgroup -S python && adduser -S python -G python \
+    && mkdir -p /app \
+    && chown -R python:python /app
+
+USER python
+
+WORKDIR /app
+
+RUN pip3 install --no-cache-dir ruff
+
+CMD ["python3"]

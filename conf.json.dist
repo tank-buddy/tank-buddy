@@ -1,0 +1,7 @@
+{
+    "hostname": "tank-buddy",
+    "wifi": {
+        "interface": "AP",
+        "ssid": "TankBuddy"
+    }
+}

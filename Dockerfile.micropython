@@ -1,0 +1,17 @@
+ARG MICROPYTHON_VERSION=v1.24.1
+
+FROM micropython/unix:$MICROPYTHON_VERSION
+    
+ENV HOME /home/micropython
+
+RUN useradd --create-home --home-dir $HOME micropython \
+    && mkdir -p $HOME/app \
+    && chown -R micropython:micropython $HOME
+
+USER micropython
+
+WORKDIR $HOME/app
+
+RUN micropython -m mip install unittest
+
+CMD ["micropython"]
