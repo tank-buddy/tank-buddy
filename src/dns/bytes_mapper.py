@@ -3,4 +3,4 @@ class BytesMapper:
         pass
 
     def fromIp(self, ip):
-        return bytes(map(int, ip.split('.')))
+        return bytes(map(int, ip.split(".")))
