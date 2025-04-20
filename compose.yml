@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile.micropython
     volumes:
       - './:/home/micropython/app'
+    user: "100:101"
     command: micropython test_runner.py
 
   lint:
@@ -13,6 +14,7 @@ services:
       dockerfile: Dockerfile.python
     volumes:
       - './:/app'
+    user: "100:101"
     command: ruff --config ./ruff.toml check
 
   format:
@@ -21,4 +23,5 @@ services:
       dockerfile: Dockerfile.python
     volumes:
       - './:/app'
+    user: "100:101"
     command: ruff --config ./ruff.toml format
