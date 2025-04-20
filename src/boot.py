@@ -1,30 +1,54 @@
 from network import WLAN, hostname
 from config import Config
+from dns import Mdns, DumpDns, DnsRecord
+
+AP_IP = const('192.168.1.1')
+AP_SUBNET_MASK = const('255.255.255.0')
+
+LOCAL_DOMAIN = const('api.tank-buddy.local')
+
+def getDnsRecord():
+    return DnsRecord(LOCAL_DOMAIN, AP_IP)
+
+def startMdns():
+    mdns = Mdns(getDnsRecord())
+    mdns.start()
+
+def startDumpDns():
+    dumpDns = DumpDns(getDnsRecord())
+    dumpDns.start()
 
 def initWifiClient(config):
     wlan = WLAN(WLAN.IF_STA)
     wlan.active(True)
-    
+
     wlan.scan()
-    print('init wifi client')
     wlan.connect(config.get('wifi.ssid'), config.get('wifi.key'))
 
     if not wlan.isconnected():
         raise Exception("Could not connect to wifi.")
-    
-    print(wlan.ifconfig())
 
 def initWifiAccessPoint(config):
-    wlan = WLAN(WLAN.IF_STA)
-    wlan.active(True)
-    wlan.config(ssid=config.get('wifi.ssid'), key=config.get('wifi.key'))
-
-
-def initDefaultWifiAccessPoint(config):
-    print("Init default Wifi")
     wlan = WLAN(WLAN.IF_AP)
     wlan.active(True)
+    wlan.ifconfig((AP_IP, AP_SUBNET_MASK, AP_IP, AP_IP))
+
+    try:
+        wlan.config(ssid=config.get('wifi.ssid'), key=config.get('wifi.key'))
+    except Exception:
+        wlan.config(ssid=config.get('wifi.ssid'))
+    
+    startDumpDns()
+
+def initDefaultWifiAccessPoint():
+    wlan = WLAN(WLAN.IF_AP)
+    wlan.active(True)
+    
+    wlan.ifconfig((AP_IP, AP_SUBNET_MASK, AP_IP, AP_IP))
+    
     wlan.config(ssid='TankBuddy')
+
+    startDumpDns()
 
 config = Config('./conf.json')
 
@@ -36,8 +60,6 @@ except Exception:
 try:
     wifiInterface = config.get('wifi.interface')
     
-    print(wifiInterface)
-    
     if wifiInterface == 'C':
         initWifiClient(config)            
     elif wifiInterface == 'AP':
@@ -46,4 +68,4 @@ try:
         raise Exception("Configured interface does not exists")
 
 except Exception:
-    initDefaultWifiAccessPoint(config)
+    initDefaultWifiAccessPoint()

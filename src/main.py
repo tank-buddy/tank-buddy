@@ -1,7 +1,12 @@
-from machine import Pin, SoftI2C, Timer, reset, soft_reset
+from machine import Pin, SoftI2C, reset, soft_reset
 from external.vl53l0x import VL53L0X
-from external.microdot import Microdot
+from external.microdot import Microdot, Response
 from config import Config
+from _thread import start_new_thread
+import sys
+import os
+
+Response.default_content_type = 'application/json'
 
 config = Config('./conf.json')
 
@@ -13,7 +18,10 @@ tof = VL53L0X(i2c)
 def healthCheck(request):
     return {
         'success': True,
-        'message': 'Ok'
+        'system': {
+            'micropythonVersion': sys.implementation.version,
+            'hardware': sys.implementation._machine
+        }
     }
 
 
@@ -39,14 +47,11 @@ def persistConfig(request):
 
 @app.route('/system/<re:(soft-reset|hard-reset):operation>', methods=['PUT'])
 def resetSystem(request, operation):
-    period = 1000
-    timer = Timer(1)
-    
     if operation == 'soft-reset':
-        timer.init(mode=Timer.ONE_SHOT, period=period, callback=lambda t:soft_reset())
-        return {'success': True, 'message': f'System will perfrom a soft reset after {period} ms.'}
+        start_new_thread(lambda: soft_reset(), ())
+        return {'success': True, 'message': 'System will perfrom a soft reset.'}
     
-    timer.init(mode=Timer.ONE_SHOT, period=period, callback=lambda t:reset())
-    return {'success': True, 'message': f'System will perfrom a hard reset after {period} ms.'}
+    start_new_thread(lambda: reset(), ())
+    return {'success': True, 'message': 'System will perfrom a hard reset.'}
 
 app.run(port=80, host='0.0.0.0', debug=True)
