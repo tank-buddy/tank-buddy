@@ -2,9 +2,8 @@ from machine import Pin, SoftI2C, reset, soft_reset
 from external.vl53l0x import VL53L0X
 from external.microdot import Microdot, Response
 from config import Config
-from _thread import start_new_thread
-import sys
-import os
+from asyncio import sleep, create_task
+from sys import implementation
 
 Response.default_content_type = 'application/json'
 
@@ -19,8 +18,8 @@ def healthCheck(request):
     return {
         'success': True,
         'system': {
-            'micropythonVersion': sys.implementation.version,
-            'hardware': sys.implementation._machine
+            'micropythonVersion': implementation.version,
+            'hardware': implementation._machine
         }
     }
 
@@ -46,12 +45,19 @@ def persistConfig(request):
         return {'success': False, 'message': str(e)}, 400
 
 @app.route('/system/<re:(soft-reset|hard-reset):operation>', methods=['PUT'])
-def resetSystem(request, operation):
-    if operation == 'soft-reset':
-        start_new_thread(lambda: soft_reset(), ())
-        return {'success': True, 'message': 'System will perfrom a soft reset.'}
+async def resetSystem(request, operation):
+    async def executeOperation(operation, delay):
+        await sleep(delay)
+        
+        if operation == 'soft-reset':
+            soft_reset()
+            return
+        
+        reset()
     
-    start_new_thread(lambda: reset(), ())
-    return {'success': True, 'message': 'System will perfrom a hard reset.'}
+    delay = 5
+
+    create_task(executeOperation(operation, delay))
+    return {'success': True, 'message': f'System will perfrom a {operation.replace('-', ' ')} in {delay} seconds.'}
 
 app.run(port=80, host='0.0.0.0', debug=True)

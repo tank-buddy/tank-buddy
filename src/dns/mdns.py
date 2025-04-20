@@ -8,6 +8,11 @@ class Mdns:
     PORT = 5353
     ADDRESS = '224.0.0.251'
 
+    BIND_ADDRESS = '0.0.0.0'
+    BIND_PORT = 5353
+
+    REQUEST_LENGHT = 512
+
     def __init__(self, dnsRecord):
         self.dnsRecord = dnsRecord
         self.isRunning = True
@@ -41,7 +46,7 @@ class Mdns:
             raise Exception('Member variable udp is None.')
 
         try:
-            request = self.udp.recvfrom(512)
+            request = self.udp.recvfrom(self.REQUEST_LENGHT)
         except OSError:
             await sleep(1)
             return
@@ -55,14 +60,14 @@ class Mdns:
         self.udp.sendto(response, (self.ADDRESS, self.PORT))
 
     async def _run(self):
-        idAddMembershipValue = self.bytesMapper.fromIp(self.ADDRESS) + self.bytesMapper.fromIp('0.0.0.0')
+        idAddMembershipValue = self.bytesMapper.fromIp(self.ADDRESS) + self.bytesMapper.fromIp(self.BIND_ADDRESS)
 
         self.udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         
         self.udp.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.udp.setsockopt(IPPROTO_IP, IP_ADD_MEMBERSHIP, idAddMembershipValue)
         self.udp.setblocking(False)
-        self.udp.bind(('0.0.0.0', self.PORT))
+        self.udp.bind((self.BIND_ADDRESS, self.BIND_PORT))
 
 
         while self.isRunning:

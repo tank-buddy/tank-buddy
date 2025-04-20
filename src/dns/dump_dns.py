@@ -5,6 +5,11 @@ from dns.qname_mapper import QNameMapper
 from dns.bytes_mapper import BytesMapper
 
 class DumpDns:
+    BIND_ADDRESS = '0.0.0.0'
+    BIND_PORT = 53
+
+    REQUEST_LENGHT = 512
+
     def __init__(self, dnsRecord):
         self.dnsRecord = dnsRecord
         self.udp = None
@@ -45,7 +50,7 @@ class DumpDns:
             raise Exception('Member variable udp is None.')
 
         try:
-            request, address = self.udp.recvfrom(512)
+            request, address = self.udp.recvfrom(self.REQUEST_LENGHT)
         except OSError:
             await sleep(1)
             return
@@ -61,9 +66,9 @@ class DumpDns:
         self.udp.sendto(response, address)
 
     async def _run(self):
-        print(f'Starting async server on 0.0.0.0:53...')
+        print(f'Starting async server on {self.BIND_ADDRESS}:{self.BIND_PORT}...')
         self.udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
-        self.udp.bind(('0.0.0.0', 53))
+        self.udp.bind((self.BIND_ADDRESS, self.BIND_PORT))
         self.udp.setblocking(False)
 
         while self.isRunning:

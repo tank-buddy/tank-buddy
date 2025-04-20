@@ -2,10 +2,10 @@ from network import WLAN, hostname
 from config import Config
 from dns import Mdns, DumpDns, DnsRecord
 
-AP_IP = const('192.168.1.1')
-AP_SUBNET_MASK = const('255.255.255.0')
+AP_IP = '192.168.1.1'
+AP_SUBNET_MASK = '255.255.255.0'
 
-LOCAL_DOMAIN = const('api.tank-buddy.local')
+LOCAL_DOMAIN = 'api.tank-buddy.local'
 
 def getDnsRecord():
     return DnsRecord(LOCAL_DOMAIN, AP_IP)
