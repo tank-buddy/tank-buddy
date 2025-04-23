@@ -5,7 +5,7 @@ RUN apk add --no-cache bash \
     && pip install --no-cache-dir ruff
 
 RUN addgroup -S python && adduser -S python -G python \
-    && mkdir -p /app \
+    && mkdir -p /app/.ruff-cache \
     && chown -R python:python /app
 
 USER python

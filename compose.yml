@@ -13,7 +13,7 @@ services:
       dockerfile: Dockerfile.python
     volumes:
       - './:/app'
-    command: ruff --config ./ruff.toml check
+    command: ruff --config ./ruff.toml check --no-cache
 
   format:
     build:
@@ -21,4 +21,4 @@ services:
       dockerfile: Dockerfile.python
     volumes:
       - './:/app'
-    command: ruff --config ./ruff.toml format
+    command: ruff --config ./ruff.toml format --no-cache

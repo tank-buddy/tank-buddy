@@ -20,15 +20,20 @@ install-stubs:
 upload: build
 	mpr rm --rf /
 	mpr mkdir config
+	mpr mkdir dns
 	mpr mkdir external
 	mpr mkdir schema
 	mpr put -r dist/config/* config/
+	mpr put -r dist/dns/* dns/
 	mpr put -r dist/external/* external/
 	mpr put -r dist/schema/* schema/
 	mpr put -f dist/main.py main.py
 	mpr put -f dist/boot.py boot.py
 	mpr put -f dist/conf.json conf.json
 	mpr reboot
+
+run-on-device: upload
+	mpr repl
 
 docker-build-images:
 	docker compose build
