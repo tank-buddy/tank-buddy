@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.node
     volumes:
-      - './web-ui:/app'
+      - './web-ui:/home/node/app'
     command: pnpm install
 
   core-test:
@@ -28,7 +28,7 @@ services:
       context: .
       dockerfile: Dockerfile.node
     volumes:
-      - './web-ui:/app'
+      - './web-ui:/home/node/app'
     command: pnpm run lint
 
   core-format:
