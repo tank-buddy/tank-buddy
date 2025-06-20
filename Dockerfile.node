@@ -1,5 +1,7 @@
 FROM node:lts-alpine
 
+ENV TMPDIR=/tmp
+
 RUN mkdir /app \
     && chown -R node:node /app \
     && npm install --global -g pnpm@latest-10
