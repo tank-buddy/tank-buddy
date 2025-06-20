@@ -2,15 +2,9 @@ ARG MICROPYTHON_VERSION=v1.24.1
 
 FROM micropython/unix:$MICROPYTHON_VERSION
     
-ENV HOME /home/micropython
+RUN mkdir /app
 
-RUN useradd --create-home --home-dir $HOME micropython \
-    && mkdir -p $HOME/app \
-    && chown -R micropython:micropython $HOME
-
-USER micropython
-
-WORKDIR $HOME/app
+WORKDIR /app
 
 RUN micropython -m mip install unittest
 
