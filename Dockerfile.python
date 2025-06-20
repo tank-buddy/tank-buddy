@@ -1,9 +1,12 @@
 FROM python:alpine
 
+RUN apk add --no-cache bash \
+    && pip install --upgrade pip \
+    && pip install ruff \
+    && pip install mpy-cross-v6
+
 RUN mkdir /app
 
 WORKDIR /app
-
-RUN pip3 install ruff mpy-cross
 
 CMD ["python3"]
