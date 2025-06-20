@@ -2,12 +2,8 @@ FROM node:lts-alpine
 
 RUN npm install --global -g pnpm@latest-10
 
-USER node
+RUN mkdir -p /app
 
-RUN mkdir -p /home/node/app
-
-WORKDIR /home/node/app
-
-ENV TMPDIR=/tmp
+WORKDIR /app
 
 CMD ["node"]
