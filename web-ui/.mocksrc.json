@@ -1,0 +1,12 @@
+{
+  "mock": {
+    "collections": {
+      "selected": "base"
+    }
+  },
+  "files": {
+    "babelRegister": {
+      "enabled": true
+    }
+  }
+}

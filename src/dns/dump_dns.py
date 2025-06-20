@@ -1,4 +1,5 @@
-from socket import socket, AF_INET, SOCK_DGRAM, IPPROTO_UDP
+from socket import socket, AF_INET, SOCK_DGRAM
+from .compat_socket import IPPROTO_UDP
 from sys import print_exception
 from asyncio import sleep, create_task
 from dns.qname_mapper import QNameMapper
@@ -32,7 +33,7 @@ class DumpDns:
             b"\x00\x01",  # CLASS IN (Internet)
             b"\x00\x00\x00\x3c",  # TTL = 60 seconds
             b"\x00\x04",  # RDLENGTH = 4 bytes (IPv4)
-            self.bytesMapper.fromIp(self.dnsRecord.ip),  # RDATA (IPv4 address)
+            self.bytesMapper.from_ip(self.dnsRecord.ip),  # RDATA (IPv4 address)
         ]
 
         suffix = b"".join(suffixParts)

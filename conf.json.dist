@@ -3,5 +3,8 @@
     "wifi": {
         "interface": "AP",
         "ssid": "TankBuddy"
+    },
+    "waterTank": {
+        "height": 200
     }
 }

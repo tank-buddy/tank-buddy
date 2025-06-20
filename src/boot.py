@@ -5,8 +5,7 @@ from dns import Mdns, DumpDns, DnsRecord
 AP_IP = "192.168.1.1"
 AP_SUBNET_MASK = "255.255.255.0"
 
-LOCAL_DOMAIN = "api.tank-buddy.local"
-
+LOCAL_DOMAIN = "web.tank-buddy.local"
 
 def getDnsRecord():
     return DnsRecord(LOCAL_DOMAIN, AP_IP)

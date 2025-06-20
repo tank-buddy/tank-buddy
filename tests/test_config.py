@@ -2,7 +2,6 @@ import unittest
 
 import os
 from config import Config
-from json import dumps
 
 CONFIG_JSON = b'{"hostname":"wtls","wifi":{"interface":"C","ssid":"SSID","key":"asdf1234"}}'
 

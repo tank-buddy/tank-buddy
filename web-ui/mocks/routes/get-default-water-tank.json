@@ -1,0 +1,20 @@
+[
+  {
+    "id": "get-default-water-tank",
+    "url": "/api/water-tanks/default",
+    "method": "GET",
+    "variants": [
+      {
+        "id": "default",
+        "type": "json",
+        "options": {
+          "status": 200,
+          "body": {
+            "height": 200,
+            "distanceToWater": 50
+          }
+        }
+      }
+    ]
+  }
+]

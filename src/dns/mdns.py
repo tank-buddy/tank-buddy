@@ -4,10 +4,8 @@ from socket import (
     SOCK_DGRAM,
     SOL_SOCKET,
     SO_REUSEADDR,
-    IPPROTO_UDP,
-    IPPROTO_IP,
-    IP_ADD_MEMBERSHIP,
 )
+from .compat_socket import IPPROTO_UDP, IPPROTO_IP, IP_ADD_MEMBERSHIP
 from dns.qname_mapper import QNameMapper
 from dns.bytes_mapper import BytesMapper
 from asyncio import sleep, create_task
@@ -37,7 +35,7 @@ class Mdns:
             b"\x00\x01",  # CLASS IN (Internet)
             b"\x00\x00\x00\x3c",  # TTL = 60 seconds
             b"\x00\x04",  # RDLENGTH = 4 bytes (IPv4)
-            self.bytesMapper.fromIp(self.dnsRecord.ip),  # RDATA (IPv4 address)
+            self.bytesMapper.from_ip(self.dnsRecord.ip),  # RDATA (IPv4 address)
         ]
 
         suffix = b"".join(suffixParts)
@@ -70,9 +68,9 @@ class Mdns:
         self.udp.sendto(response, (self.ADDRESS, self.PORT))
 
     async def _run(self):
-        idAddMembershipValue = self.bytesMapper.fromIp(
+        idAddMembershipValue = self.bytesMapper.from_ip(
             self.ADDRESS
-        ) + self.bytesMapper.fromIp(self.BIND_ADDRESS)
+        ) + self.bytesMapper.from_ip(self.BIND_ADDRESS)
 
         self.udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
 

@@ -57,6 +57,7 @@ class Config:
                     "^(C|AP)$", value
                 ),
                 "wifi.ssid": lambda value, keyValueMap: isinstance(value, str),
+                "waterTank.height": lambda value, keyValueMap: isinstance(value, int) and value > 0,
             },
             {"wifi.key": lambda value, keyValueMap: isinstance(value, str)},
         )

@@ -1,5 +1,17 @@
 import sys
 
+dummy_esp = type("esp", (), {})()
+dummy_esp.flash_size = lambda: 4096 # type: ignore
+dummy_esp.__name__ = "esp" # type: ignore
+
+dummy_machine = type("machine", (), {})()
+dummy_machine.reset = lambda: print("Simulated machine.reset()") # type: ignore
+dummy_machine.soft_reset = lambda: print("Simulated machine.soft_reset()") # type: ignore
+dummy_machine.__name__ = "machine" # type: ignore
+
+sys.modules["esp"] = dummy_esp # type: ignore
+sys.modules["machine"] = dummy_machine # type: ignore
+
 sys.path.insert(0, 'src')
 
 import os
