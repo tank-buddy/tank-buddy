@@ -38,3 +38,19 @@ services:
     volumes:
       - './:/app'
     command: ruff --config ./ruff.toml format --no-cache
+
+  core-build:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    volumes:
+      - './:/app'
+    command: make build-core
+
+  web-ui-build:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    volumes:
+      - './web-ui:/app'
+    command: pnpm build

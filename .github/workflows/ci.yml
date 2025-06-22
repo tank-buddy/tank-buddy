@@ -16,6 +16,7 @@ jobs:
 
     - name: Build docker images
       run: make docker-build-images
+      continue-on-error: false
 
     - name: Install dependencies
       run: make docker-install
@@ -23,6 +24,10 @@ jobs:
 
     - name: Run ruff & biomejs (linting)
       run: make docker-lint
+      continue-on-error: false
+
+    - name: Build web-ui
+      run: make docker-test
       continue-on-error: false
 
     - name: Run tests

@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build docker images
+        run: make docker-build-images
+        continue-on-error: false
+
+      - name: Install dependencies
+        run: make docker-install
+        continue-on-error: false
+
+      - name: Run ruff & biomejs (linting)
+        run: make docker-lint
+        continue-on-error: false
+
+      - name: Run tests
+        run: make docker-test
+        continue-on-error: false
+
+      - name: Build
+        run: make docker-build
+        continue-on-error: false
+
+      - name: Build
+        run: make docker-build
+        continue-on-error: false
+
+      - name: Archive build output
+        run: |
+          VERSION=${{ github.ref_name }}
+          tar -czvf tank-buddy-${VERSION}.tar.gz ./dist
+
+      - name: Upload release asset with gh CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" "tank-buddy-${GITHUB_REF_NAME}.tar.gz" --repo "$GITHUB_REPOSITORY"

@@ -22,7 +22,7 @@ build-web-ui:
 	pnpm build
 	cd ${BASE_DIRECTORY}
 
-build: clean build-web-ui
+build-core:
 	mkdir dist
 	@if [ ! -e ./conf.json ]; then\
 		cp ./conf.json.dist ./conf.json;\
@@ -37,6 +37,8 @@ build: clean build-web-ui
 	mkdir dist/cert
 	cp cert/web.tank-buddy.local.key.der dist/cert/key.der
 	cp cert/web.tank-buddy.local.crt.der dist/cert/cert.der
+
+build: clean build-web-ui build-core
 
 install-stubs:
 	pipx install -U micropython-${STUBS_FOR}-stubs --no-user --target ./typings
@@ -65,6 +67,14 @@ run-on-device: upload
 
 docker-build-images:
 	docker compose build
+
+docker-build: docker-build-web-ui docker-build-core
+
+docker-build-core:
+	docker compose run --rm core-build
+
+docker-build-web-ui:
+	docker compose run --rm web-ui-build
 
 docker-install:
 	docker compose run --rm web-ui-install
