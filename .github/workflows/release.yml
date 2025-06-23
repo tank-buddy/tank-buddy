@@ -40,7 +40,7 @@ jobs:
           VERSION=${{ github.ref_name }}
           tar -czvf tank-buddy-${VERSION}.tar.gz ./dist
 
-      - name: Upload release asset with gh CLI
+      - name: Upload release asset with gh cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
