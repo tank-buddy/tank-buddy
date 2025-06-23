@@ -26,10 +26,10 @@ jobs:
       run: make docker-lint
       continue-on-error: false
 
-    - name: Build web-ui
+    - name: Run tests
       run: make docker-test
       continue-on-error: false
 
-    - name: Run tests
-      run: make docker-test
+    - name: Build web-ui
+      run: make docker-build-web-ui
       continue-on-error: false

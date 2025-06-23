@@ -12,7 +12,7 @@ services:
       context: .
       dockerfile: Dockerfile.micropython
     volumes:
-      - './:/home/micropython/app'
+      - './:/app'
     command: micropython test_runner.py
 
   core-lint:

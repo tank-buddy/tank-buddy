@@ -35,10 +35,6 @@ jobs:
         run: make docker-build
         continue-on-error: false
 
-      - name: Build
-        run: make docker-build
-        continue-on-error: false
-
       - name: Archive build output
         run: |
           VERSION=${{ github.ref_name }}
