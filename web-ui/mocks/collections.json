@@ -4,7 +4,8 @@
     "routes": [
       "get-default-config:default",
       "get-default-water-tank:default",
-      "patch-default-config:default"
+      "patch-default-config:default",
+      "put-system-operations:default"
     ]
   }
 ]

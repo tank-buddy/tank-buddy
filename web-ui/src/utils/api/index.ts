@@ -1,6 +1,12 @@
-import type { ConfigInterface, WaterTankInterface } from './types'
+import type {
+  ConfigInterface,
+  SystemOperationIdentifier,
+  WaterTankInterface,
+} from './types'
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3100'
+const baseUrl = import.meta.env.DEV
+  ? 'http://localhost:3100'
+  : (window.location.origin ?? 'http://localhost:3100')
 
 export const getDefaultConfig = async (): Promise<ConfigInterface> => {
   const input = new URL(`${baseUrl.replace(/\/+$/g, '')}/api/configs/default`)
@@ -9,6 +15,7 @@ export const getDefaultConfig = async (): Promise<ConfigInterface> => {
     method: 'GET',
     headers: {
       accept: 'application/json',
+      connection: 'close',
     },
   })
 
@@ -29,6 +36,7 @@ export const patchDefaultConfig = async (
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
+      connection: 'close',
     },
     body: JSON.stringify(config),
   })
@@ -40,37 +48,23 @@ export const patchDefaultConfig = async (
   return await response.json()
 }
 
-export const performSoftReset = async (): Promise<void> => {
+export const putSystemOperation = async (
+  identifier: SystemOperationIdentifier
+): Promise<void> => {
   const input = new URL(
-    `${baseUrl.replace(/\/+$/g, '')}/api/system-operations/soft-reset`
+    `${baseUrl.replace(/\/+$/g, '')}/api/system-operations/${identifier}`
   )
 
   const response = await fetch(input, {
     method: 'PUT',
     headers: {
       accept: 'application/json',
+      connection: 'close',
     },
   })
 
   if (!response.ok) {
-    throw new Error('Could not perform soft reset.')
-  }
-}
-
-export const performHardReset = async (): Promise<void> => {
-  const input = new URL(
-    `${baseUrl.replace(/\/+$/g, '')}/api/system-operations/hard-reset`
-  )
-
-  const response = await fetch(input, {
-    method: 'PUT',
-    headers: {
-      accept: 'application/json',
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error('Could not perform hard reset.')
+    throw new Error(`Could not put system operation '${identifier}'.`)
   }
 }
 
@@ -83,6 +77,7 @@ export const getDefaultWaterTank = async (): Promise<WaterTankInterface> => {
     method: 'GET',
     headers: {
       accept: 'application/json',
+      connection: 'close',
     },
   })
 
@@ -90,5 +85,5 @@ export const getDefaultWaterTank = async (): Promise<WaterTankInterface> => {
     throw new Error('Could not found default config.')
   }
 
-  return await response.json()
+  return { ...(await response.json()), timestamp: Date.now() }
 }

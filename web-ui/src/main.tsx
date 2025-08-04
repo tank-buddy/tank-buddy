@@ -1,5 +1,9 @@
 import { render } from 'preact'
-import App from './App'
+import './index.css'
+import App from './App.tsx'
 
-// biome-ignore lint/style/noNonNullAssertion: <explanation>
-render(<App />, document.getElementById('app')!)
+const appElement = document.getElementById('app')
+
+if (appElement !== null) {
+  render(<App />, appElement)
+}

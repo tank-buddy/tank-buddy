@@ -1,8 +1,9 @@
-import { defineConfig } from 'vite'
 import preact from '@preact/preset-vite'
 import tailwindcss from '@tailwindcss/vite'
-import { compression } from 'vite-plugin-compression2'
 import { visualizer } from 'rollup-plugin-visualizer'
+import { defineConfig } from 'vite'
+import { compression } from 'vite-plugin-compression2'
+import svgr from 'vite-plugin-svgr'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -31,12 +32,13 @@ export default defineConfig({
       toplevel: true,
     },
     sourcemap: false,
-    target: 'es2015',
+    target: 'esnext',
   },
   plugins: [
     preact(),
     tailwindcss(),
-    compression({ deleteOriginalAssets: true }),
-    visualizer({ open: true }),
+    compression({ algorithms: ['gzip'], deleteOriginalAssets: true }),
+    visualizer({ open: true, gzipSize: true }),
+    svgr(),
   ],
 })

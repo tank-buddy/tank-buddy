@@ -7,7 +7,7 @@ class DummyConfig:
     def __init__(self):
         self.data = {"foo": "bar"}
 
-    def toJson(self):
+    def to_json(self):
         return self.data
 
     def apply(self, json_data):

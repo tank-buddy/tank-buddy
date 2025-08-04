@@ -4,13 +4,13 @@ import re
 
 
 class Config:
-    def __init__(self, pathToConfigFile):
-        self.pathToConfigFile = pathToConfigFile
-        self.dictSchema = None
+    def __init__(self, path_to_config_file):
+        self.path_to_config_file = path_to_config_file
+        self.dict_schema = None
         self.load()
 
     def load(self):
-        configFile = open(self.pathToConfigFile)
+        configFile = open(self.path_to_config_file)
 
         self.data = load(configFile)
 
@@ -34,9 +34,9 @@ class Config:
 
     def apply(self, dataToApply):
         try:
-            self._getDictSchema().validate(dataToApply)
+            self._get_dict_schema().validate(dataToApply)
 
-            configFile = open(self.pathToConfigFile, "w")
+            configFile = open(self.path_to_config_file, "w")
             configFile.write(dumps(dataToApply))
             configFile.close()
         except DictSchemaException:
@@ -44,25 +44,27 @@ class Config:
         except Exception as e:
             raise e
 
-    def _getDictSchema(self):
-        if self.dictSchema is not None:
-            return self.dictSchema
+    def _get_dict_schema(self):
+        if self.dict_schema is not None:
+            return self.dict_schema
 
-        self.dictSchema = DictSchema(
+        self.dict_schema = DictSchema(
             {
-                "hostname": lambda value, keyValueMap: re.search(
-                    "^[a-z]+(-[a-z]+)*$", value
-                ),
                 "wifi.interface": lambda value, keyValueMap: re.search(
                     "^(C|AP)$", value
                 ),
                 "wifi.ssid": lambda value, keyValueMap: isinstance(value, str),
-                "waterTank.height": lambda value, keyValueMap: isinstance(value, int) and value > 0,
+                "waterTank.height": lambda value, keyValueMap: isinstance(value, int)
+                and value > 0,
+                "waterTank.minDistance": lambda value, keyValueMap: isinstance(
+                    value, int
+                )
+                and value >= 0,
             },
             {"wifi.key": lambda value, keyValueMap: isinstance(value, str)},
         )
 
-        return self.dictSchema
+        return self.dict_schema
 
-    def toJson(self):
+    def to_json(self):
         return dumps(self.data)

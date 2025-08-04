@@ -7,10 +7,14 @@ export interface ConfigInterface {
   }
   waterTank: {
     height: number
+    minDistance: number
   }
 }
 
 export interface WaterTankInterface {
   height: number
   distanceToWater: number
+  timestamp: number
 }
+
+export type SystemOperationIdentifier = 'hard-reset' | 'soft-reset'

@@ -1,21 +1,21 @@
 from external.microdot import send_file, Response, Microdot
-from ssl import SSLContext, PROTOCOL_TLS_SERVER
 from config import Config
 from file_system import FileSystem
 from hardware import Hardware
 from water_tank import WaterTank
 
+
 class Api:
     MIME_TYPES = {
-        '.html': 'text/html',
-        '.js': 'application/javascript',
-        '.css': 'text/css',
-        '.json': 'application/json',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.svg': 'image/svg+xml',
-        '.ico': 'image/x-icon',
-        '.woff2': 'font/woff2',
+        ".html": "text/html",
+        ".js": "application/javascript",
+        ".css": "text/css",
+        ".json": "application/json",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+        ".woff2": "font/woff2",
     }
 
     def __init__(
@@ -24,8 +24,7 @@ class Api:
         http_app: Microdot,
         file_system: FileSystem,
         hardware: Hardware,
-        water_tank: WaterTank
-
+        water_tank: WaterTank,
     ):
         self.config = config
         self.http_app = http_app
@@ -43,11 +42,9 @@ class Api:
         def get_water_tank_statistics(request):
             return self.water_tank.get_statistics()
 
-
         @self.http_app.route("/api/configs/default", methods=["GET"])
         def get_config(request):
-            return self.config.toJson()
-
+            return self.config.to_json()
 
         @self.http_app.route("/api/configs/default", methods=["PATCH"])
         def persist_config(request):
@@ -57,42 +54,35 @@ class Api:
             except Exception as e:
                 return {"success": False, "message": str(e)}, 400
 
-
-        @self.http_app.route("/api/system-operations/<re:(soft-reset|hard-reset):operation>", methods=["PUT"])
+        @self.http_app.route(
+            "/api/system-operations/<re:(soft-reset|hard-reset):operation>",
+            methods=["PUT"],
+        )
         async def reset_hardware(request, operation):
             delay = 5
-            self.hardware.reset(operation.split("-")[0:1], delay)
+            self.hardware.reset(operation.split("-")[0], delay)
 
             return {
                 "success": True,
                 "message": f"System will perfrom a {operation.replace('-', ' ')} in {delay} seconds.",
             }
 
+        @self.http_app.route("/")
+        @self.http_app.route("/<path:path>")
+        def index(request, path=""):
+            if path.startswith("api"):
+                return "Not Found", 404
 
-        @self.http_app.route('/<path:path>')
-        def staticOr404(request, path):
-            if path.startswith('api'):
-                return 'Not Found', 404
+            gzPath = f"/www/{path}.gz"
+            if self.file_system.file_exists(gzPath):
+                extension = self.file_system.get_extension(path)
+                contentType = self.MIME_TYPES.get(extension, "application/octet-stream")
 
-            gzPath = f'/www/{path}.gz'
-            if not self.file_system.file_exists(gzPath):
-                return 'Not Found', 404
+                return send_file(gzPath, 200, contentType, compressed=True)
 
-            extension = self.file_system.get_extension(path)
-            contentType = self.MIME_TYPES.get(extension, 'application/octet-stream')
-
-            return send_file(gzPath, 200, contentType, compressed=True)
-
-        @self.http_app.route('/')
-        @self.http_app.route('/<path:path>')
-        def index(request, path=''):
-            if path.startswith('api'):
-                return 'Not Found', 404
-
-            return send_file('/www/index.html.gz', 200, 'text/html', compressed=True)
+            return send_file("/www/index.html.gz", 200, "text/html", compressed=True)
 
     def run(self):
         Response.default_content_type = "application/json"
-
-        ssl_context = SSLContext(PROTOCOL_TLS_SERVER)
-        ssl_context.load_cert_chain('cert/cert.der', 'cert/key.der')
+        
+        self.http_app.run(port=80, host="0.0.0.0", debug=True)

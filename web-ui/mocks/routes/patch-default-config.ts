@@ -1,20 +1,13 @@
-const isRequestValid = (request) => {
-  const hostname = request.body.hostname
-  if (hostname === undefined || hostname === '') {
-    return false
-  }
+import type { Request, Response } from 'express'
 
+const isRequestValid = (request) => {
   const mode = request.body.wifi?.interface
   if (mode === undefined || (mode !== 'C' && mode !== 'AP')) {
     return false
   }
 
   const ssid = request.body.wifi?.ssid
-  if (ssid === undefined || ssid === '') {
-    return false
-  }
-
-  return true
+  return !(ssid === undefined || ssid === '')
 }
 
 export default [
@@ -27,17 +20,23 @@ export default [
         id: 'default',
         type: 'middleware',
         options: {
-          middleware: async (request, response) => {
+          middleware: (request: Request, response: Response) => {
             console.log(request.body)
-
             if (!isRequestValid(request)) {
               response.status(400)
-              response.send({ success: false, message: 'Config is not valid.' })
+              setTimeout(
+                () =>
+                  response.send({
+                    success: false,
+                    message: 'Config is not valid.',
+                  }),
+                5000
+              )
               return
             }
 
             response.status(200)
-            response.send(request.body)
+            setTimeout(() => response.send({ success: true }), 5000)
           },
         },
       },

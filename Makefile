@@ -1,26 +1,13 @@
 STUBS_FOR=esp32
 BASE_PATH ?= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 WEB_UI_DIRECTORY=web-ui
-WEB_UI_PATH=$(BASE_PATH)/${WEB_UI_DIRECTORY}
-
-
-create-key-and-cert:
-	openssl req -x509 -newkey rsa:2048 -sha256 -days 365 \
-  		-nodes -keyout cert/web.tank-buddy.local.key -out cert/web.tank-buddy.local.crt \
-  		-subj "/CN=web.tank-buddy.local" \
-  		-addext "subjectAltName=DNS:web.tank-buddy.local"
-	
-	openssl x509 -in cert/web.tank-buddy.local.crt -outform der -out cert/web.tank-buddy.local.crt.der
-	openssl rsa -in cert/web.tank-buddy.local.key -outform der -out cert/web.tank-buddy.local.key.der
+WEB_UI_PATH=$(BASE_PATH)/$(WEB_UI_DIRECTORY)
 
 clean:
 	rm -Rf dist
 
 build-web-ui:
-	cd ${WEB_UI_PATH}
-	pnpm install
-	pnpm build
-	cd ${BASE_DIRECTORY}
+	cd $(WEB_UI_PATH); pnpm install; pnpm build
 
 build-core:
 	mkdir dist
@@ -33,33 +20,34 @@ build-core:
 	find src/external/ -name '*.mpy' | xargs -n1 rm
 	find dist/external/ -name '*.py' | xargs -n1 rm
 	mkdir dist/www
-	cp -a ./${WEB_UI_DIRECTORY}/dist/. ./dist/www/
-	mkdir dist/cert
-	cp cert/web.tank-buddy.local.key.der dist/cert/key.der
-	cp cert/web.tank-buddy.local.crt.der dist/cert/cert.der
+	cp -a ./$(WEB_UI_DIRECTORY)/dist/. ./dist/www/
 
 build: clean build-web-ui build-core
 
 install-stubs:
-	pipx install -U micropython-${STUBS_FOR}-stubs --no-user --target ./typings
+	pipx install -U micropython-$(STUBS_FOR)-stubs --no-user --target ./typings
 
 upload: build
 	mpr rm --rf /
+	mpr mkdir api
 	mpr mkdir config
-	mpr mkdir dns
 	mpr mkdir external
+	mpr mkdir file_system
+	mpr mkdir hardware
 	mpr mkdir schema
+	mpr mkdir water_tank
 	mpr mkdir www
-	mpr mkdir cert
-	mpr put -r dist/config/* config/
-	mpr put -r dist/dns/* dns/
-	mpr put -r dist/external/* external/
-	mpr put -r dist/schema/* schema/
 	mpr put -r dist/www/* www/
-	mpr put -r dist/cert/* cert/
+	mpr put -r dist/api/* api/
+	mpr put -r dist/config/* config/
+	mpr put -r dist/external/* external/
+	mpr put -r dist/file_system/* file_system/
+	mpr put -r dist/hardware/* hardware/
+	mpr put -r dist/schema/* schema/
+	mpr put -r dist/water_tank/* water_tank/
+	mpr put -f dist/conf.json conf.json
 	mpr put -f dist/main.py main.py
 	mpr put -f dist/boot.py boot.py
-	mpr put -f dist/conf.json conf.json
 	mpr reboot
 
 run-on-device: upload

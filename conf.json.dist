@@ -1,10 +1,10 @@
 {
-    "hostname": "tank-buddy",
     "wifi": {
         "interface": "AP",
         "ssid": "TankBuddy"
     },
     "waterTank": {
-        "height": 200
+        "height": 280,
+        "minDistance": 30
     }
 }

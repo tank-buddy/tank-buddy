@@ -1,5 +1,6 @@
 from os import stat
 
+
 class FileSystem:
     def __init__(self, stat_fn=stat):
         self._stat = stat_fn
@@ -11,11 +12,11 @@ class FileSystem:
             return True
         except OSError:
             return False
-    
+
     def get_extension(self, path):
-        dot = path.rfind('.')
-        
+        dot = path.rfind(".")
+
         if dot == -1:
-            return ''
-        
+            return ""
+
         return path[dot:]
