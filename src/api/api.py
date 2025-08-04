@@ -84,5 +84,5 @@ class Api:
 
     def run(self):
         Response.default_content_type = "application/json"
-        
+
         self.http_app.run(port=80, host="0.0.0.0", debug=True)

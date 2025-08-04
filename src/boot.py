@@ -7,6 +7,7 @@ AP_SUBNET_MASK = "255.255.255.0"
 
 HOSTNAME = "tank-buddy"
 
+
 def init_wifi_client(config):
     wlan = WLAN(WLAN.IF_STA)
     wlan.active(True)
@@ -22,8 +23,6 @@ def init_wifi_client(config):
     if not wlan.isconnected():
         raise Exception("Could not connect to wifi.")
 
-    ip = wlan.ifconfig()[0]
-
 
 def init_wifi_access_point(config):
     wlan = WLAN(WLAN.IF_AP)
@@ -35,6 +34,7 @@ def init_wifi_access_point(config):
     except Exception:
         wlan.config(ssid=config.get("wifi.ssid"))
 
+
 def init_default_wifi_access_point():
     wlan = WLAN(WLAN.IF_AP)
     wlan.active(True)
@@ -42,6 +42,7 @@ def init_default_wifi_access_point():
     wlan.ifconfig((AP_IP, AP_SUBNET_MASK, AP_IP, AP_IP))
 
     wlan.config(ssid="TankBuddy")
+
 
 config = Config("./conf.json")
 
