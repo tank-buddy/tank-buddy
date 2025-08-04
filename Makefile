@@ -15,10 +15,10 @@ build-core:
 		cp ./conf.json.dist ./conf.json;\
 	fi
 	cp conf.json dist/
-	find src/external/ -name '*.py' | xargs -n1 mpy-cross
+	find src/ -name '*.py' | grep -vE 'src/(main|boot)\.py$$' | xargs -n1 mpy-cross
 	cp -a src/. dist/
-	find src/external/ -name '*.mpy' | xargs -n1 rm
-	find dist/external/ -name '*.py' | xargs -n1 rm
+	find src/ -name '*.mpy' | xargs -n1 rm
+	find dist/ -name '*.py' | grep -vE 'dist/(main|boot)\.py$$' | xargs -n1 rm
 	mkdir dist/www
 	cp -a ./$(WEB_UI_DIRECTORY)/dist/. ./dist/www/
 
