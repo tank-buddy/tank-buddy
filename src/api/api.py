@@ -3,7 +3,7 @@ from config import Config
 from file_system import FileSystem
 from hardware import Hardware
 from water_tank import WaterTank
-
+from ssl import SSLContext
 
 class Api:
     MIME_TYPES = {
@@ -25,12 +25,14 @@ class Api:
         file_system: FileSystem,
         hardware: Hardware,
         water_tank: WaterTank,
+        ssl_context: SSLContext
     ):
         self.config = config
         self.http_app = http_app
         self.file_system = file_system
         self.hardware = hardware
         self.water_tank = water_tank
+        self.ssl_context = ssl_context
         self._register_routes()
 
     def _register_routes(self):
@@ -68,8 +70,11 @@ class Api:
             }
 
         @self.http_app.route("/")
+        def serve_index(request):
+            return send_file("/www/index.html.gz", 200, "text/html", compressed=True, max_age=31536000)
+        
         @self.http_app.route("/<path:path>")
-        def index(request, path=""):
+        def serve_static(request, path=""):
             if path.startswith("api"):
                 return "Not Found", 404
 
@@ -78,11 +83,11 @@ class Api:
                 extension = self.file_system.get_extension(path)
                 contentType = self.MIME_TYPES.get(extension, "application/octet-stream")
 
-                return send_file(gzPath, 200, contentType, compressed=True)
+                return send_file(gzPath, 200, contentType, compressed=True, max_age=31536000)
 
-            return send_file("/www/index.html.gz", 200, "text/html", compressed=True)
+            return serve_index(request)
 
     def run(self):
         Response.default_content_type = "application/json"
 
-        self.http_app.run(port=80, host="0.0.0.0", debug=True)
+        self.http_app.run(port=443, host="0.0.0.0", debug=False, ssl=self.ssl_context)

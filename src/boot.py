@@ -7,7 +7,6 @@ AP_SUBNET_MASK = "255.255.255.0"
 
 HOSTNAME = "tank-buddy"
 
-
 def init_wifi_client(config):
     wlan = WLAN(WLAN.IF_STA)
     wlan.active(True)
@@ -57,6 +56,5 @@ try:
         init_wifi_access_point(config)
     else:
         raise Exception("Configured interface does not exists")
-
 except Exception:
     init_default_wifi_access_point()

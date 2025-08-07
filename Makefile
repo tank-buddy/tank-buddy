@@ -3,6 +3,17 @@ BASE_PATH ?= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 WEB_UI_DIRECTORY=web-ui
 WEB_UI_PATH=$(BASE_PATH)/$(WEB_UI_DIRECTORY)
 
+create-self-signed-certificate:
+	mkcert -key-file ./cert/key.pem -cert-file ./cert/cert.pem tank-buddy.local 192.168.1.1
+	@printf "private_key = b\"\"\"" > ./src/certs.py
+	@cat ./cert/key.pem >> ./src/certs.py
+	@echo "\"\"\"" >> ./src/certs.py
+	@echo "" >> ./src/certs.py
+	@printf "certificate = b\"\"\"" >> ./src/certs.py
+	@cat ./cert/cert.pem >> ./src/certs.py
+	@echo "\"\"\"" >> ./src/certs.py
+	@echo "" >> ./src/certs.py
+
 clean:
 	rm -Rf dist
 
@@ -46,6 +57,8 @@ upload: build
 	mpr put -r dist/schema/* schema/
 	mpr put -r dist/water_tank/* water_tank/
 	mpr put -f dist/conf.json conf.json
+	mpr put -f dist/globals.mpy globals.mpy
+	mpr put -f dist/certs.mpy certs.mpy
 	mpr put -f dist/main.py main.py
 	mpr put -f dist/boot.py boot.py
 	mpr reboot

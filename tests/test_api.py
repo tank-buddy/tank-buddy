@@ -35,6 +35,13 @@ class DummyFileSystem:
             return "." + path.split(".")[-1]
         return ""
 
+class DummySSLContext:
+    def __init__(self):
+        self.cert_chain_loaded = False
+    
+    def load_cert_chain(self, cert, key):
+        self.cert_chain_loaded = True
+
 class TestApi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -43,13 +50,15 @@ class TestApi(unittest.TestCase):
         cls.hardware = DummyHardware()
         cls.tank = DummyWaterTank()
         cls.fs = DummyFileSystem()
+        cls.ssl_context = DummySSLContext
 
         cls.api = Api(
             config=cls.config, # type: ignore
             http_app=cls.app,
             file_system=cls.fs, # type: ignore
             hardware=cls.hardware, # type: ignore
-            water_tank=cls.tank # type: ignore
+            water_tank=cls.tank, # type: ignore
+            ssl_context=cls.ssl_context # type: ignore
         )
 
         cls.client = TestClient(cls.app)
