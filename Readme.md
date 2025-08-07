@@ -4,13 +4,13 @@ Tank Buddy is a MicroPython-based project for the ESP32 that monitors the water 
 
 ## Features
 
-🚰 Real-time tank level monitoring using a VL53L0X sensor
-🌐 Built-in web server (API + Web UI)
-📶 Wi-Fi configuration via browser (Access Point or Client mode)
-📊 Live-updating graph showing percentage fill level (updates every 5 seconds)
-🌍 Multilingual UI (English and German, auto-detected via browser language)
-🖨️ Printable 3D cases available on Thingiverse for ESP32 and sensor
-🧠 Configurable tank height and sensor offset via web interface
+- 🚰 Real-time tank level monitoring using a VL53L0X sensor
+- 🌐 Built-in web server (API + Web UI)
+- 📶 Wi-Fi configuration via browser (Access Point or Client mode)
+- 📊 Live-updating graph showing percentage fill level (updates every 5 seconds)
+- 🌍 Multilingual UI (English and German, auto-detected via browser language)
+- 🖨️ Printable 3D cases available on Thingiverse for ESP32 and sensor
+- 🧠 Configurable tank height and sensor offset via web interface
 
 ## Getting Started
 
@@ -20,7 +20,11 @@ Before installation, make sure the following tools are available on your system:
 - [`Node.js`](https://nodejs.org/)
 - [`pnpm`](https://pnpm.io/)
 - [`mpr`](https://github.com/bulletmark/mpr)
+- [`mpy-cross`](https://pypi.org/project/mpy-cross/)
 
+### Installing MicroPython Firmware
+
+Before copying the source code to the ESP32, ensure that the ESP32 is flashed with the latest MicroPython firmware. You can follow the official [MicroPython ESP32 installation guide](https://docs.micropython.org/en/latest/esp32/tutorial/intro.html) to install the firmware.
 
 ### Installation
 To upload the source code and web interface to the ESP32, simply run:
@@ -40,13 +44,21 @@ Connect to it and open a browser to http://192.168.1.1 to access the web UI.
 
 ### Configuration
 
-In the Settings tab of the web interface, you can:
+In the **Settings** tab of the web interface, you can configure:
 
-- Switch between Access Point and Wi-Fi Client mode
-- Set SSID and password
-- Adjust tank height and minimum sensor distance
+- Wi-Fi mode: switch between Access Point and Wi-Fi Client mode
+- Network credentials: set SSID and password for your Wi-Fi network
+- Tank parameters: define tank height and minimum sensor distance (sensor offset)
 
-In the Home tab, you'll see the current water level graph, which updates every 5 seconds.
+When switching to Client mode, the ESP32 can be accessed using mDNS at:
+
+```
+tank-buddy.local
+```
+
+### Monitoring
+
+In the **Home** tab, you'll see a live-updating graph showing the current water level as a percentage. The data is refreshed every 5 seconds.
 
 ## Web UI
 The frontend is built with Preact and served directly from the ESP32. The language is automatically selected based on the browser settings (English or German).
@@ -63,5 +75,5 @@ Makefile – Build and upload automation
 This project is licensed under the MIT License.
 
 ## Links
-🔗 GitHub Repository
-📦 VL53L0X MicroPython driver
+- [`📦 VL53L0X MicroPython driver`](https://github.com/antirez/vl53l0x-nb)
+- [`🌐 Microdot`](https://github.com/miguelgrinberg/microdot)
