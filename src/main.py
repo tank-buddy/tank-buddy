@@ -5,7 +5,7 @@ from config import Config
 from water_tank import WaterTank
 from hardware import Hardware
 from file_system import FileSystem
-from ssl import SSLContext, PROTOCOL_TLS_SERVER, CERT_NONE
+from ssl import SSLContext, PROTOCOL_TLS_SERVER
 from api import Api
 from certs import private_key, certificate
 

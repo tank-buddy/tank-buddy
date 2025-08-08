@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import WrappedSpinner from '../../assets/spinner.svg?react'
+import WrappedSpinner from '../Icon/Spinner'
 import type { SpinnerPropsInterface } from './types.ts'
 
 const Spinner = (props: SpinnerPropsInterface) => {

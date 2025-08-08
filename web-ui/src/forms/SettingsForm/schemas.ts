@@ -1,23 +1,9 @@
-import {
-  enum as vEnum,
-  integer as vInteger,
-  minValue as vMinValue,
-  nonOptional as vNonOptional,
-  number as vNumber,
-  object as vObject,
-  optional as vOptional,
-  pipe as vPipe,
-  string as vString,
-} from 'valibot'
+import { z } from 'zod/mini'
 
-export const SettingsFormSchema = vObject({
-  wifi: vObject({
-    interface: vEnum({ C: 'C', AP: 'AP' }),
-    ssid: vNonOptional(vString()),
-    key: vOptional(vString()),
-  }),
-  waterTank: vObject({
-    height: vNonOptional(vPipe(vNumber(), vInteger(), vMinValue(1))),
-    minDistance: vNonOptional(vPipe(vNumber(), vInteger(), vMinValue(0))),
-  }),
+export const SettingsFormSchema = z.object({
+  'wifi.interface': z.enum(['C', 'AP']),
+  'wifi.ssid': z.string().check(z.minLength(1), z.trim()),
+  'wifi.key': z.optional(z.string()),
+  'waterTank.height': z.number().check(z.minimum(1)),
+  'waterTank.minDistance': z.number().check(z.minimum(0)),
 })

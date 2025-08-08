@@ -1,4 +1,4 @@
-import type { InferInput } from 'valibot'
+import type { z } from 'zod/mini'
 import type { SettingsFormSchema } from './schemas.ts'
 
-export type Settings = InferInput<typeof SettingsFormSchema>
+export type Settings = z.infer<typeof SettingsFormSchema>

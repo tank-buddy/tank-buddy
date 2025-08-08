@@ -1,44 +1,38 @@
 import preact from '@preact/preset-vite'
 import tailwindcss from '@tailwindcss/vite'
+import browserslist from 'browserslist'
+import { browserslistToTargets } from 'lightningcss'
 import { visualizer } from 'rollup-plugin-visualizer'
 import { defineConfig } from 'vite'
 import { compression } from 'vite-plugin-compression2'
-import svgr from 'vite-plugin-svgr'
 
 // https://vite.dev/config/
 export default defineConfig({
-  build: {
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        dead_code: true,
-        conditionals: true,
-        booleans: true,
-        if_return: true,
-        join_vars: true,
-        sequences: true,
-        evaluate: true,
-        unused: true,
-        comparisons: true,
-        typeofs: true,
-      },
-      format: {
-        comments: false,
-      },
-      mangle: true,
-      module: true,
-      toplevel: true,
+  css: {
+    transformer: 'lightningcss',
+    lightningcss: {
+      targets: browserslistToTargets(browserslist('>= 0.25%')),
     },
+  },
+  build: {
+    minify: 'esbuild',
+    cssMinify: 'lightningcss',
     sourcemap: false,
     target: 'esnext',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          preact: ['preact', 'preact-iso'],
+          wouter: ['wouter-preact'],
+          zod: ['zod'],
+        },
+      },
+    },
   },
   plugins: [
     preact(),
     tailwindcss(),
     compression({ algorithms: ['gzip'], deleteOriginalAssets: true }),
     visualizer({ open: true, gzipSize: true }),
-    svgr(),
   ],
 })

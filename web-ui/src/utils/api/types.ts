@@ -1,7 +1,8 @@
+export type WifiInterface = 'C' | 'AP'
+
 export interface ConfigInterface {
-  hostname: string
   wifi: {
-    interface: 'C' | 'AP'
+    interface: WifiInterface
     ssid: string
     key?: string
   }
