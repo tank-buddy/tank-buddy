@@ -55,6 +55,12 @@ jobs:
           git clone -b v1.26.0 https://github.com/micropython/micropython.git
           git -C micropython submodule update --init --recursive
 
+      - name: Setup ESP-IDF
+        run: |
+          git clone -b v5.2.1 --recursive https://github.com/espressif/esp-idf.git
+          ./esp-idf/install.sh
+          echo "source $PWD/esp-idf/export.sh" >> $GITHUB_ENV
+
       - name: Compile mpy-cross
         run: |
           cd micropython/mpy-cross
@@ -62,6 +68,7 @@ jobs:
 
       - name: Build Firmware
         run: |
+          source esp-idf/export.sh
           cd micropython/ports/esp32
           make BOARD=ESP32_GENERIC_C6 FROZEN_MANIFEST=../../../manifest.py
 
