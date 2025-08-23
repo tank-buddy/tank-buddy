@@ -9,16 +9,19 @@ from ssl import SSLContext, PROTOCOL_TLS_SERVER
 from api import Api
 from certs import private_key, certificate
 
-config = Config("./conf.json")
+try:
+    config = Config("./conf.json")
 
-i2c = SoftI2C(scl=Pin(1), sda=Pin(0))
-tof = VL53L0X(i2c)
-water_tank = WaterTank(config, tof)
-app = Microdot()
-hardware = Hardware()
-file_system = FileSystem()
-ssl_context = SSLContext(PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain(certificate, private_key)
+    i2c = SoftI2C(scl=Pin(1), sda=Pin(0))
+    tof = VL53L0X(i2c)
+    water_tank = WaterTank(config, tof)
+    app = Microdot()
+    hardware = Hardware()
+    file_system = FileSystem()
+    ssl_context = SSLContext(PROTOCOL_TLS_SERVER)
+    ssl_context.load_cert_chain(certificate, private_key)
 
-api = Api(config, app, file_system, hardware, water_tank, ssl_context)
-api.run()
+    api = Api(config, app, file_system, hardware, water_tank, ssl_context)
+    api.run()
+except Exception as e:
+    print(e)
