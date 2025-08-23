@@ -39,6 +39,11 @@ jobs:
     needs: continous-integration
 
     steps:
+      - name: Install mkcert
+        run: |
+          sudo apt update
+          sudo apt install -y mkcert libnss3-tools
+
       - name: Checkout repo
         uses: actions/checkout@v4
 
