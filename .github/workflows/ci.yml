@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create self signed cert
-        run: create-self-signed-certificate
+        run: make create-self-signed-certificate
 
       - name: Clone MicroPython
         run: |
