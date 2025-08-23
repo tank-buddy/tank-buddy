@@ -3,12 +3,10 @@ import type { JSX } from 'preact'
 export interface SelectPropsInterface {
   name: string
   options: Record<string | number, string>
-  onInput: JSX.GenericEventHandler<HTMLSelectElement>
+  value: string | number | undefined
   onChange?: JSX.GenericEventHandler<HTMLSelectElement>
-  onBlur?: JSX.FocusEventHandler<HTMLSelectElement>
   className?: string
   placeholder?: string
-  value: string | number | undefined
-  error?: string
   required?: boolean
+  error?: boolean
 }

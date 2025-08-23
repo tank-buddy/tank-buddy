@@ -1,4 +1,9 @@
-import type { z } from 'zod/mini'
-import type { SettingsFormSchema } from './schemas.ts'
+import type { WifiInterface } from '../../utils/api/types.ts'
 
-export type Settings = z.infer<typeof SettingsFormSchema>
+export interface SettingsInterface {
+  'wifi.interface': WifiInterface
+  'wifi.ssid': string
+  'wifi.key'?: string | undefined
+  'waterTank.height': number
+  'waterTank.minDistance': number
+}

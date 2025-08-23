@@ -26,7 +26,7 @@ build-core:
 		cp ./conf.json.dist ./conf.json;\
 	fi
 	cp conf.json dist/
-	find src/ -name '*.py' | grep -vE 'src/(main|boot)\.py$$' | xargs -n1 mpy-cross
+	find src/ -name '*.py' | grep -vE 'src/(main|boot)\.py$$' | xargs -n1 mpy-cross -O2
 	cp -a src/. dist/
 	find src/ -name '*.mpy' | xargs -n1 rm
 	find dist/ -name '*.py' | grep -vE 'dist/(main|boot)\.py$$' | xargs -n1 rm
@@ -57,7 +57,6 @@ upload: build
 	mpr put -r dist/schema/* schema/
 	mpr put -r dist/water_tank/* water_tank/
 	mpr put -f dist/conf.json conf.json
-	mpr put -f dist/globals.mpy globals.mpy
 	mpr put -f dist/certs.mpy certs.mpy
 	mpr put -f dist/main.py main.py
 	mpr put -f dist/boot.py boot.py

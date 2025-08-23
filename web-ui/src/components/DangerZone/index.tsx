@@ -1,33 +1,35 @@
 import { useState } from 'preact/hooks'
-import usePutSystemOperation from '../../hooks/usePutSystemOperation'
-import { useIntl } from '../../providers/IntlProvider'
+import { putSystemOperation } from '../../utils/api'
+import { t } from '../../utils/i18n'
 import Button from '../Button'
 import Spinner from '../Spinner'
 
 const DangerZone = () => {
-  const { t } = useIntl()
-
   const [performingSoftReset, setPerformingSoftReset] = useState(false)
   const [performingHardReset, setPerformingHardReset] = useState(false)
 
-  const { mutate } = usePutSystemOperation()
-
   const onSoftResetClick = async () => {
     setPerformingSoftReset(true)
-    await mutate('soft-reset', {
-      onSuccess: () => {
-        setPerformingSoftReset(false)
-      },
-    })
+
+    try {
+      await putSystemOperation('soft-reset')
+    } catch (e) {
+      console.warn(e)
+    }
+
+    setPerformingSoftReset(false)
   }
 
   const onHardResetClick = async () => {
     setPerformingHardReset(true)
-    await mutate('hard-reset', {
-      onSuccess: () => {
-        setPerformingHardReset(false)
-      },
-    })
+
+    try {
+      await putSystemOperation('hard-reset')
+    } catch (e) {
+      console.warn(e)
+    }
+
+    setPerformingHardReset(false)
   }
 
   return (

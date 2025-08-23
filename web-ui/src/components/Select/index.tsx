@@ -3,14 +3,14 @@ import ChevronDown from '../Icon/ChevronDown'
 import type { SelectPropsInterface } from './types.ts'
 
 const Select = (props: SelectPropsInterface) => {
-  const { name, options, className, value, error, onInput, ...rest } = props
+  const { name, options, className, value, error, onChange, ...rest } = props
 
   return (
     <div class="relative">
       <select
         name={name}
         value={value}
-        onInput={onInput}
+        onChange={onChange}
         class={clsx(
           'w-full h-11 pl-4 pr-10 py-2.5 text-sm appearance-none border border-gray-300 bg-transparent text-gray-800',
           'dark:border-gray-700 dark:bg-gray-900 dark:text-white/90',

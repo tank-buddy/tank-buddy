@@ -1,25 +1,29 @@
-import { useState } from 'preact/hooks'
-import useGetDefaultWaterTank from '../../hooks/useGetDefaultWaterTank'
-import { useIntl } from '../../providers/IntlProvider'
+import { useEffect, useState } from 'preact/hooks'
+import { getDefaultWaterTank } from '../../utils/api'
+import { t } from '../../utils/i18n'
 
 const LevelIndicator = () => {
-  const { t } = useIntl()
-
   const [percentage, setPercentage] = useState<number>(0)
   const [timestamp, setTimestamp] = useState<number | undefined>(undefined)
 
-  const { data: defaultWaterTank, isSuccess } = useGetDefaultWaterTank({
-    interval: 5000,
-  })
+  useEffect(() => {
+    setInterval(async () => {
+      try {
+        const defaultWaterTank = await getDefaultWaterTank()
 
-  if (isSuccess && defaultWaterTank !== undefined) {
-    const fillHeight =
-      defaultWaterTank.height - defaultWaterTank.distanceToWater
-    const percentage = Math.floor((fillHeight * 100) / defaultWaterTank.height)
+        const fillHeight =
+          defaultWaterTank.height - defaultWaterTank.distanceToWater
+        const percentage = Math.floor(
+          (fillHeight * 100) / defaultWaterTank.height
+        )
 
-    setPercentage(percentage)
-    setTimestamp(defaultWaterTank.timestamp)
-  }
+        setPercentage(percentage)
+        setTimestamp(defaultWaterTank.timestamp)
+      } catch (e) {
+        console.error(e)
+      }
+    }, 5000)
+  }, [])
 
   return (
     <div class="p-5">

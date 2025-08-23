@@ -19,20 +19,14 @@ export default defineConfig({
     cssMinify: 'lightningcss',
     sourcemap: false,
     target: 'esnext',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          preact: ['preact', 'preact-iso'],
-          wouter: ['wouter-preact'],
-          zod: ['zod'],
-        },
-      },
+    modulePreload: {
+      polyfill: false,
     },
   },
   plugins: [
     preact(),
     tailwindcss(),
     compression({ algorithms: ['gzip'], deleteOriginalAssets: true }),
-    visualizer({ open: true, gzipSize: true }),
+    ...[process.env.ANALYZE ? visualizer({ open: true, gzipSize: true }) : []],
   ],
 })

@@ -1,10 +1,8 @@
 import DangerZone from '../../components/DangerZone'
 import SettingsForm from '../../forms/SettingsForm'
-import { useIntl } from '../../providers/IntlProvider'
+import { t } from '../../utils/i18n'
 
 const Settings = () => {
-  const { t } = useIntl()
-
   return (
     <div>
       <div class="p-5">

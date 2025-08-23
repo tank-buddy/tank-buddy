@@ -1,8 +1,6 @@
-import { useIntl } from '../../providers/IntlProvider'
+import { t } from '../../utils/i18n'
 
 const NotFound = () => {
-  const { t } = useIntl()
-
   return (
     <div class="flex flex-col items-center justify-center h-full p-5">
       <div class="text-5xl text-teal-500 mb-3">{t('title.404')}</div>

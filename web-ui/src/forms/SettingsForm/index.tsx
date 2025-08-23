@@ -5,116 +5,115 @@ import Input from '../../components/Input'
 import Label from '../../components/Label'
 import Select from '../../components/Select'
 import Spinner from '../../components/Spinner'
-import useGetDefaultConfig from '../../hooks/useGetDefaultConfig'
-import usePatchDefaultConfig from '../../hooks/usePatchDefaultConfig'
-import { useIntl } from '../../providers/IntlProvider'
-import type { ConfigInterface } from '../../utils/api/types'
-import { SettingsFormSchema } from './schemas.ts'
-import type { Settings } from './types.ts'
-
-const settingsToConfig = (settings: Settings): ConfigInterface => {
-  return {
-    wifi: {
-      interface: settings['wifi.interface'],
-      ssid: settings['wifi.ssid'],
-      key: settings['wifi.key'],
-    },
-    waterTank: {
-      height: settings['waterTank.height'],
-      minDistance: settings['waterTank.minDistance'],
-    },
-  }
-}
+import { getDefaultConfig, patchDefaultConfig } from '../../utils/api'
+import type { WifiInterface } from '../../utils/api/types.ts'
+import { t } from '../../utils/i18n'
 
 const SettingsForm = () => {
-  const { t } = useIntl()
-  const {
-    data: config,
-    refetch,
-    isSuccess,
-    isLoading,
-    isError,
-    error,
-  } = useGetDefaultConfig()
+  const validationRules: Record<
+    string,
+    (value: string | number | undefined) => boolean
+  > = {
+    'wifi.interface': (value: string | number | undefined) =>
+      value === 'C' || value === 'AP',
+    'wifi.ssid': (value: string | number | undefined) =>
+      typeof value === 'string' && value.length > 0,
+    'wifi.key': (_value: string | number | undefined) => true,
+    'waterTank.height': (value: string | number | undefined) =>
+      value !== undefined && Number.isInteger(value) && Number(value) > 0,
+    'waterTank.minDistance': (value: string | number | undefined) =>
+      value !== undefined && Number.isInteger(value) && Number(value) >= 0,
+  }
 
-  const {
-    mutate,
-    isSuccess: isSuccessfullyPatched,
-    isPending: isPatchPending,
-    isError: hasPatchErrors,
-    error: patchingError,
-  } = usePatchDefaultConfig({
-    onSuccess: async () => {
-      await refetch()
-    },
-  })
-
-  const [formData, setFormData] = useState<Partial<Settings>>({})
-  const [formErrors, setFormErrors] = useState<
-    Partial<Record<keyof Settings, string>>
+  const [isLoading, setIsLoading] = useState(true)
+  const [isPatching, setIsPatching] = useState(false)
+  const [patchingError, setPatchingError] = useState<Error | undefined>(
+    undefined
+  )
+  const [formErrors, setFormErrors] = useState<Record<string, boolean>>({})
+  const [formData, setFormData] = useState<
+    Record<string, string | number | undefined>
   >({})
 
   useEffect(() => {
-    if (isSuccess && config !== undefined) {
-      setFormData({
-        'wifi.interface': config.wifi?.interface,
-        'wifi.ssid': config.wifi?.ssid,
-        'wifi.key': config.wifi?.key,
-        'waterTank.height': config.waterTank?.height,
-        'waterTank.minDistance': config.waterTank?.minDistance,
-      })
-    }
-  }, [isSuccess, config])
+    const setInitialFormData = async () => {
+      try {
+        const defaultConfig = await getDefaultConfig()
 
-  const handleChange = (
-    key: keyof Settings,
-    value: number | string | undefined
-  ) => {
-    setFormData((prev: Partial<Settings>) => ({ ...prev, [key]: value }))
+        setFormData({
+          'wifi.interface': defaultConfig.wifi.interface,
+          'wifi.ssid': defaultConfig.wifi.ssid,
+          'wifi.key': defaultConfig.wifi.key,
+          'waterTank.height': defaultConfig.waterTank.height,
+          'waterTank.minDistance': defaultConfig.waterTank.minDistance,
+        })
+      } catch (e) {
+        console.warn(e)
+      }
+
+      setIsLoading(false)
+    }
+
+    setInitialFormData()
+  }, [])
+
+  const handleChange = (key: string, value: string | number | undefined) => {
+    setFormErrors({ ...formErrors, [key]: !validationRules[key](value) })
+    setFormData({ ...formData, [key]: value })
   }
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault()
-    setFormErrors({})
+    setIsPatching(true)
+    const isValid = Object.keys(formErrors).every((key) => !formErrors[key])
 
-    const parsed = SettingsFormSchema.safeParse(formData)
-    console.log(parsed)
-    if (!parsed.success) {
-      const fieldErrors: Partial<Record<keyof Settings, string>> = {}
-      for (const issue of parsed.error.issues) {
-        const path = issue.path.join('.') as keyof Settings
-        fieldErrors[path] = issue.message
-      }
-      setFormErrors(fieldErrors)
+    if (!isValid) {
+      setIsPatching(false)
       return
     }
 
-    await mutate(settingsToConfig(parsed.data))
+    try {
+      await patchDefaultConfig({
+        wifi: {
+          interface: formData['wifi.interface'] as WifiInterface,
+          ssid: formData['wifi.ssid'] as string,
+          key: formData['wifi.key'] as string | undefined,
+        },
+        waterTank: {
+          height: formData['waterTank.height'] as number,
+          minDistance: formData['waterTank.minDistance'] as number,
+        },
+      })
+      setPatchingError(undefined)
+    } catch (e) {
+      console.warn(e)
+      setPatchingError(e as Error)
+    }
+
+    setIsPatching(false)
   }
 
   if (isLoading) return <Spinner className="w-10 h-10" />
-  if (isError) return <div>{error?.message}</div>
 
   return (
     <div>
-      {!isPatchPending && isSuccessfullyPatched && (
+      {!isPatching && patchingError === undefined && (
         <Alert type="success">{t('alert.settings-save-successfully')}</Alert>
       )}
-      {!isPatchPending && hasPatchErrors && (
+      {!isPatching && patchingError && (
         <Alert type="error">
           <div>{t('alert.settings-could-not-be-saved')}</div>
           <div>{patchingError?.message}</div>
         </Alert>
       )}
-
       <form onSubmit={handleSubmit}>
-        <div class="mb-3">
+        <div className="mb-3">
           <Label>
             <div>{t('label.mode')}</div>
             <Select
               name="wifi.interface"
               value={formData['wifi.interface'] ?? ''}
-              onInput={(e) =>
+              onChange={(e) =>
                 handleChange(
                   'wifi.interface',
                   (e.target as HTMLSelectElement).value
@@ -193,7 +192,7 @@ const SettingsForm = () => {
           </Label>
         </div>
 
-        {!isPatchPending ? (
+        {!isPatching ? (
           <Button type="submit" className="w-full">
             {t('button.save')}
           </Button>

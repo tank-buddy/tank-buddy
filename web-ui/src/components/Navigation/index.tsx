@@ -1,4 +1,4 @@
-import { useIntl } from '../../providers/IntlProvider'
+import { t } from '../../utils/i18n'
 import HomeIcon from '../Icon/Home'
 import SettingsIcon from '../Icon/Settings'
 import NavigationItem from '../NavigationItem'
@@ -18,8 +18,6 @@ const links: LinkInterface[] = [
 ]
 
 const Navigation = () => {
-  const { t } = useIntl()
-
   return (
     <nav className="flex-none h-16 border-t border-gray-200 dark:border-gray-800">
       <ul className="flex h-full items-center justify-evenly list-none">
