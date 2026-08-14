@@ -1,34 +1,47 @@
-import clsx from 'clsx'
-import type { InputPropsInterface } from './types.ts'
+import type { InputEventHandler } from 'preact'
 
-const Input = (props: InputPropsInterface) => {
+interface InputProps {
+  type?: 'text' | 'number' | 'password'
+  name: string
+  value: string
+  error?: boolean
+  placeholder?: string
+  testId?: string
+  onInput: InputEventHandler<HTMLInputElement>
+}
+
+// Borderless and right-aligned, because the field always sits in the value slot
+// of a grouped list row -- the row supplies the frame and the separator.
+const BASE =
+  'w-full min-w-0 bg-transparent text-right text-[17px] ' +
+  'placeholder:text-label-tertiary focus:outline-none'
+
+const Input = (props: InputProps) => {
   const {
     name,
     type = 'text',
-    error,
-    className,
+    error = false,
     value,
+    placeholder,
+    testId,
     onInput,
-    ...rest
   } = props
 
   return (
     <input
       name={name}
-      class={clsx(
-        'w-full h-11 px-4 py-2.5 text-sm appearance-none border border-gray-300 bg-transparent text-gray-800',
-        'dark:border-gray-700 dark:bg-gray-900 dark:text-white/90',
-        'focus:outline-hidden focus:ring-3',
-        error
-          ? 'border-red-300 focus:border-red-300 focus:ring-red-500/20 dark:border-red-800 dark:focus:border-red-800'
-          : 'focus:border-teal-300 focus:ring-teal-500/20 dark:focus:border-teal-800',
-        className
-      )}
+      data-testid={testId}
+      class={`${BASE} ${error ? 'text-destructive' : 'text-label'}`}
       type={type}
+      placeholder={placeholder}
+      // Without these, iOS capitalises the first letter of an SSID or a broker
+      // host and underlines a topic prefix as a spelling mistake.
+      autocapitalize="none"
+      spellcheck={false}
+      inputMode={type === 'number' ? 'numeric' : undefined}
       value={value}
       onInput={onInput}
-      aria-invalid={!!error}
-      {...rest}
+      aria-invalid={error}
     />
   )
 }

@@ -3,8 +3,54 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/tank-buddy.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover is what makes env(safe-area-inset-*) resolve to
+         anything but 0, so the layout can respect the notch and home bar. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <title>TankBuddy</title>
+
+    <!-- Added to the home screen, the device is reached over plain HTTP, so
+         there is no service worker and no install prompt: both need a secure
+         context. iOS reads these tags regardless, which is enough for a
+         chrome-less launch with a proper icon. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="TankBuddy" />
+    <!-- Deliberately `default`, not `black-translucent`: translucent forces
+         white status-bar text, which is unreadable over the light theme's
+         #f2f2f7. With `default` iOS tints the bar from theme-color below, which
+         the theme module keeps in sync with the active theme. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#f2f2f7" />
+
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Runs before the bundle so the page paints in the right theme instead of
+         flashing white first. The key and the values are mirrored in
+         src/utils/theme; keep them in sync. -->
+    <script>
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('tank-buddy-theme')
+          var theme =
+            stored === 'dark' || stored === 'light'
+              ? stored
+              : matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+
+          document.documentElement.dataset.theme = theme
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute('content', theme === 'dark' ? '#000000' : '#f2f2f7')
+        } catch (error) {
+          document.documentElement.dataset.theme = 'light'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>

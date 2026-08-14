@@ -1,73 +1,115 @@
-import unittest
+import pytest
+
 from hardware import Hardware
 
-class DummyImpl:
+try:
+    from typing import Any
+except ImportError:  # pragma: no cover
+    pass
+
+KIB = 1024
+MIB = 1024 * KIB
+
+
+class DummyImplementation:
     version = (1, 19, 1)
     _machine = "ESP32"
 
-class HardwareTest(unittest.TestCase):
 
-    def test_get_flash_statistics(self):
-        def fake_statvfs(path):
-            return (1024, 0, 500, 524, 0, 0, 0, 0, 0, 0)  # block size 1024, used 500, free 524
-        def fake_flash_size():
-            return 2 * 1024 * 1024  # 2MB
+def test_get_flash_statistics() -> None:
+    # statvfs layout: (block_size, frag_size, blocks, blocks_free, ...)
+    def fake_statvfs(_path: str) -> "tuple[int, ...]":
+        return (KIB, 0, 500, 524, 0, 0, 0, 0, 0, 0)
 
-        hw = Hardware(
-            statvfs_fn=fake_statvfs,
-            flash_size_fn=fake_flash_size,
-        )
+    hardware = Hardware(statvfs_fn=fake_statvfs, flash_size_fn=lambda: 2 * MIB)
 
-        stats = hw.get_flash_statistics()
-        self.assertEqual(stats["total"], 2048)
-        self.assertEqual(stats["used"], 500)
-        self.assertEqual(stats["free"], 524)
+    statistics = hardware.get_flash_statistics()
 
-    def test_get_ram_statistics(self):
-        collect_called = [False]
-        def fake_collect():
-            collect_called[0] = True
-        def fake_mem_free():
-            return 128 * 1024
-        def fake_mem_alloc():
-            return 64 * 1024
+    assert statistics["total"] == 2048
+    assert statistics["used"] == 500
+    assert statistics["free"] == 524
 
-        hw = Hardware(
-            collect_fn=fake_collect,
-            mem_free_fn=fake_mem_free,
-            mem_alloc_fn=fake_mem_alloc
-        )
 
-        stats = hw.get_ram_statistics()
-        self.assertTrue(collect_called[0])
-        self.assertEqual(stats["free"], 128)
-        self.assertEqual(stats["used"], 64)
-        self.assertEqual(stats["total"], 192)
+def test_get_ram_statistics_collects_first() -> None:
+    collect_calls: "list[bool]" = []
 
-    def test_get_info(self):
-        hw = Hardware(
-            statvfs_fn=lambda _: (1024, 0, 1, 1, 0, 0, 0, 0, 0, 0),
-            flash_size_fn=lambda: 1024,
-            collect_fn=lambda: None,
-            mem_free_fn=lambda: 512,
-            mem_alloc_fn=lambda: 512,
-            implementation_obj=DummyImpl()
-        )
-        info = hw.get_info()
-        self.assertEqual(info["micropythonVersion"], (1, 19, 1))
-        self.assertEqual(info["hardware"], "ESP32")
-        self.assertIn("statistics", info)
+    hardware = Hardware(
+        collect_fn=lambda: collect_calls.append(True),
+        mem_free_fn=lambda: 128 * KIB,
+        mem_alloc_fn=lambda: 64 * KIB,
+    )
 
-    def test_reset_invalid_kind_raises(self):
-        called = []
-        async def dummy_sleep(x): called.append(x)
-        def dummy_task(coro): return coro  # no-op
+    statistics = hardware.get_ram_statistics()
 
-        hw = Hardware(sleep_fn=dummy_sleep, create_task_fn=dummy_task)
+    assert collect_calls == [True], "gc.collect() must run before reading the heap"
+    assert statistics["free"] == 128
+    assert statistics["used"] == 64
+    assert statistics["total"] == 192
 
-        try:
-            import uasyncio
-            uasyncio.run(hw._reset("invalid", 1))
-            self.fail("Expected exception for invalid reset kind")
-        except Exception as e:
-            self.assertEqual(str(e), "Kind of reset does not exist")
+
+def test_get_info() -> None:
+    hardware = Hardware(
+        statvfs_fn=lambda _: (KIB, 0, 1, 1, 0, 0, 0, 0, 0, 0),
+        flash_size_fn=lambda: KIB,
+        collect_fn=lambda: None,
+        mem_free_fn=lambda: 512,
+        mem_alloc_fn=lambda: 512,
+        implementation_obj=DummyImplementation(),
+    )
+
+    info = hardware.get_info()
+
+    assert info["micropythonVersion"] == (1, 19, 1)
+    assert info["hardware"] == "ESP32"
+    assert "statistics" in info
+
+
+def _capturing_hardware(
+    performed: "list[str]", slept: "list[float]", scheduled: "list[Any]"
+) -> Hardware:
+    """A Hardware whose reset path is fully observable.
+
+    `create_task_fn` captures the coroutine instead of scheduling it, so tests
+    drive `reset()` -- the public entry point -- and await the work themselves.
+    """
+
+    async def fake_sleep(delay: float) -> None:
+        slept.append(delay)
+
+    return Hardware(
+        sleep_fn=fake_sleep,
+        soft_reset_fn=lambda: performed.append("soft"),
+        hard_reset_fn=lambda: performed.append("hard"),
+        create_task_fn=scheduled.append,
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected"),
+    [("soft", "soft"), ("hard", "hard")],
+)
+async def test_reset_dispatches_to_the_right_call(kind: str, expected: str) -> None:
+    performed: "list[str]" = []
+    slept: "list[float]" = []
+    scheduled: "list[Any]" = []
+    hardware = _capturing_hardware(performed, slept, scheduled)
+
+    hardware.reset(kind, 5)
+
+    assert performed == [], "reset must be scheduled, not performed inline"
+    assert len(scheduled) == 1
+
+    await scheduled[0]
+
+    assert performed == [expected]
+    assert slept == [5], "the delay must elapse before resetting so the response can be sent"
+
+
+async def test_reset_invalid_kind_raises() -> None:
+    scheduled: "list[Any]" = []
+    hardware = _capturing_hardware([], [], scheduled)
+
+    hardware.reset("invalid", 1)
+
+    with pytest.raises(ValueError, match="Kind of reset does not exist"):
+        await scheduled[0]

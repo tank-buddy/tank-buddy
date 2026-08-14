@@ -1,9 +1,0 @@
-FROM node:lts-alpine
-
-RUN npm install --global -g pnpm@latest-10
-
-RUN mkdir -p /app
-
-WORKDIR /app
-
-CMD ["node"]

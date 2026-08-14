@@ -2,12 +2,12 @@ import asyncio
 from external.microdot.microdot import Request, Response, AsyncBytesIO
 
 try:
-    from external.microdot.websocket import WebSocket
+    from microdot.websocket import WebSocket
 except:  # pragma: no cover  # noqa: E722
-    WebSocket = None
+    WebSocket = None  # type: ignore[assignment, misc]
 
 try:
-    import orjson as json
+    import orjson as json  # type: ignore[import-not-found]
 except ImportError:
     import json
 
@@ -78,6 +78,7 @@ class TestResponse:
                     data = None
                     event = None
                     event_id = None
+                    retry = None
                     for line in sse_event.split(b'\n'):
                         if line.startswith(b'data:'):
                             data = line[5:].strip()
@@ -85,6 +86,8 @@ class TestResponse:
                             event = line[6:].strip().decode()
                         elif line.startswith(b'id:'):
                             event_id = line[3:].strip().decode()
+                        elif line.startswith(b'retry:'):
+                            retry = int(line[7:].strip()) / 1000
                     if data:
                         data_json = None
                         try:
@@ -92,8 +95,9 @@ class TestResponse:
                         except ValueError:
                             pass
                         self.events.append({
-                            "data": data, "data_json": data_json,
-                            "event": event, "event_id": event_id})
+                            'data': data, 'data_json': data_json,
+                            'event': event, 'event_id': event_id,
+                            'retry': retry})
 
     @classmethod
     async def create(cls, res):
@@ -113,6 +117,8 @@ class TestClient:
     :param app: The Microdot application instance.
     :param cookies: A dictionary of cookies to use when sending requests to the
                     application.
+    :param scheme: The scheme to use for requests, either 'http' or 'https'.
+    :param host: The host to use for requests.
 
     The following example shows how to create a test client for an application
     and send a test request::
@@ -133,9 +139,11 @@ class TestClient:
     """
     __test__ = False  # remove this class from pytest's test collection
 
-    def __init__(self, app, cookies=None):
+    def __init__(self, app, cookies=None, scheme=None, host=None):
         self.app = app
         self.cookies = cookies or {}
+        self.scheme = scheme
+        self.host = host or 'example.com:1234'
 
     def _process_body(self, body, headers):
         if body is None:
@@ -148,8 +156,6 @@ class TestClient:
             body = body.encode()
         if body and 'Content-Length' not in headers:
             headers['Content-Length'] = str(len(body))
-        if 'Host' not in headers:  # pragma: no branch
-            headers['Host'] = 'example.com:1234'
         return body, headers
 
     def _process_cookies(self, path, headers):
@@ -172,6 +178,8 @@ class TestClient:
     def _render_request(self, method, path, headers, body):
         request_bytes = '{method} {path} HTTP/1.0\n'.format(
             method=method, path=path)
+        if 'Host' not in headers:  # pragma: no branch
+            request_bytes += 'Host: {host}\n'.format(host=self.host)
         for header, value in headers.items():
             request_bytes += '{header}: {value}\n'.format(
                 header=header, value=value)
@@ -232,7 +240,7 @@ class TestClient:
             writer = AsyncBytesIO(b'')
 
         req = await Request.create(self.app, reader, writer,
-                                   ('127.0.0.1', 1234))
+                                   ('127.0.0.1', 1234), scheme=self.scheme)
         res = await self.app.dispatch_request(req)
         if res == Response.already_handled:
             return TestResponse()

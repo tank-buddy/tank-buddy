@@ -12,28 +12,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up docker buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
-      - name: Build docker images
-        run: make docker-build-images
-        continue-on-error: false
+      - name: Install Python dependencies
+        run: uv sync --locked
 
-      - name: Install dependencies
-        run: make docker-install
-        continue-on-error: false
+      - name: Install MicroPython stubs
+        run: make stubs
 
-      - name: Run ruff & biomejs (linting)
-        run: make docker-lint
-        continue-on-error: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
 
-      - name: Run tests
-        run: make docker-test
-        continue-on-error: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web-ui/pnpm-lock.yaml
+
+      - name: Install web UI dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: web-ui
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: web-ui
+
+      - name: Lint, typecheck and test everything
+        run: make check-all
 
       - name: Build
-        run: make docker-build
-        continue-on-error: false
+        run: make build
 
       - name: Archive build output
         run: |

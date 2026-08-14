@@ -1,21 +1,13 @@
-import clsx from 'clsx'
-import WrappedSpinner from '../Icon/Spinner'
-import type { SpinnerPropsInterface } from './types.ts'
+import SpinnerIcon from '../Icon/Spinner'
 
-const Spinner = (props: SpinnerPropsInterface) => {
-  const { className } = props
-
-  return (
-    <div class="flex justify-center items-center">
-      <WrappedSpinner
-        className={clsx(
-          'inline text-gray-400 animate-spin fill-teal-500',
-          'dark:text-gray-700',
-          className
-        )}
-      />
-    </div>
-  )
-}
+// The icon SVG carries no intrinsic size, so the box is set here. Without it
+// the spinner inherited the browser's 300x150 default inside a button.
+// The colour is inherited on purpose: the same spinner sits on the accent-filled
+// save button and on a plain surface.
+const Spinner = () => (
+  <div class="flex items-center justify-center">
+    <SpinnerIcon className="inline size-5 animate-spin" />
+  </div>
+)
 
 export default Spinner

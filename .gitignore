@@ -4,8 +4,12 @@
 .DS_Store
 
 .ruff_cache
+.pytest_cache
+.venv
 typings
 
 dist
 
-conf.json
+settings.json
+__pycache__
+*.pyc

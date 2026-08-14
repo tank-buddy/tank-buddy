@@ -1,89 +1,75 @@
 import type {
-  ConfigInterface,
+  LevelInterface,
+  PatchSettingsResultInterface,
+  SettingsInterface,
   SystemOperationIdentifier,
-  WaterTankInterface,
+  SystemOperationResultInterface,
 } from './types'
 
-const baseUrl = import.meta.env.DEV
-  ? 'http://localhost:3100'
-  : (window.location.origin ?? 'http://localhost:3100')
+// All requests are same-origin: on device the UI is served by the API itself,
+// and in dev MSW intercepts them in the browser. No base URL to configure.
 
-export const getDefaultConfig = async (): Promise<ConfigInterface> => {
-  const input = new URL(`${baseUrl.replace(/\/+$/g, '')}/api/configs/default`)
+// The device is single-threaded and can stall; without a deadline a hung
+// socket would leak one pending request per poll interval, forever.
+const REQUEST_TIMEOUT_MS = 8000
 
-  const response = await fetch(input, {
-    method: 'GET',
-    headers: {
-      accept: 'application/json',
-      connection: 'close',
-    },
-  })
+type Method = 'GET' | 'PATCH' | 'PUT'
 
-  if (!response.ok) {
-    throw new Error('Could not found default config.')
-  }
-
-  return await response.json()
+interface RequestOptions {
+  method?: Method
+  body?: unknown
+  /**
+   * Error statuses whose body carries meaning and must be returned rather than
+   * thrown. Deliberately per-call: a 400 is only expected from PATCH /settings,
+   * and treating it as success everywhere hid failed system operations.
+   */
+  acceptStatuses?: number[]
 }
 
-export const patchDefaultConfig = async (
-  config: ConfigInterface
-): Promise<ConfigInterface> => {
-  const input = new URL(`${baseUrl.replace(/\/+$/g, '')}/api/configs/default`)
+const request = async <T>(
+  path: string,
+  options: RequestOptions = {}
+): Promise<T> => {
+  const { method = 'GET', body, acceptStatuses = [] } = options
+  const headers: Record<string, string> = { accept: 'application/json' }
 
-  const response = await fetch(input, {
+  if (body !== undefined) {
+    headers['content-type'] = 'application/json'
+  }
+
+  const response = await fetch(path, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  })
+
+  if (!response.ok && !acceptStatuses.includes(response.status)) {
+    throw new Error(`${method} ${path} failed with ${response.status}`)
+  }
+
+  return (await response.json()) as T
+}
+
+export const getLevel = (): Promise<LevelInterface> =>
+  request<LevelInterface>('/api/level')
+
+export const getSettings = (): Promise<SettingsInterface> =>
+  request<SettingsInterface>('/api/settings')
+
+export const patchSettings = (
+  patch: Partial<SettingsInterface>
+): Promise<PatchSettingsResultInterface> =>
+  request<PatchSettingsResultInterface>('/api/settings', {
     method: 'PATCH',
-    headers: {
-      accept: 'application/json',
-      'content-type': 'application/json',
-      connection: 'close',
-    },
-    body: JSON.stringify(config),
+    body: patch,
+    acceptStatuses: [400],
   })
 
-  if (!response.ok) {
-    throw new Error('Could not updated default config.')
-  }
-
-  return await response.json()
-}
-
-export const putSystemOperation = async (
+export const putSystemOperation = (
   identifier: SystemOperationIdentifier
-): Promise<void> => {
-  const input = new URL(
-    `${baseUrl.replace(/\/+$/g, '')}/api/system-operations/${identifier}`
+): Promise<SystemOperationResultInterface> =>
+  request<SystemOperationResultInterface>(
+    `/api/system-operations/${identifier}`,
+    { method: 'PUT' }
   )
-
-  const response = await fetch(input, {
-    method: 'PUT',
-    headers: {
-      accept: 'application/json',
-      connection: 'close',
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error(`Could not put system operation '${identifier}'.`)
-  }
-}
-
-export const getDefaultWaterTank = async (): Promise<WaterTankInterface> => {
-  const input = new URL(
-    `${baseUrl.replace(/\/+$/g, '')}/api/water-tanks/default`
-  )
-
-  const response = await fetch(input, {
-    method: 'GET',
-    headers: {
-      accept: 'application/json',
-      connection: 'close',
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error('Could not found default config.')
-  }
-
-  return { ...(await response.json()), timestamp: Date.now() }
-}

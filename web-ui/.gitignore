@@ -22,3 +22,18 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Test coverage
+coverage
+
+# rollup-plugin-visualizer output (ANALYZE=1 pnpm build)
+stats.html
+
+# Vitest browser-mode artefacts. Both are written by a *failing* run -- the
+# attachment store and one screenshot per failed test -- so they are leftovers of
+# a red suite, never an input to one. They sit next to the tests rather than in a
+# build directory, which is why `git add tests/` would otherwise pick them up.
+# Note: toMatchScreenshot() baselines would land in __screenshots__ as well and
+# would need an exception here before visual regression tests can be added.
+.vitest-attachments
+**/__screenshots__

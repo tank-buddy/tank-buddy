@@ -1,0 +1,17 @@
+# pnpm 11 blocks postinstall scripts unless a package is listed here.
+# @tailwindcss/oxide and esbuild ship native binaries and genuinely need their
+# build step; msw's postinstall keeps public/mockServiceWorker.js in sync with
+# the installed version. Without this a fresh `pnpm install` exits non-zero.
+onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
+  - esbuild
+  - msw
+
+peerDependencyRules:
+  # @preact/preset-vite pulls in vite-prerender-plugin, which still declares
+  # vite 5-7. It instantiates the plugin unconditionally (even with
+  # prerender.enabled false), so this is not strictly inert -- but the Vite 8
+  # build was verified to work end to end, including the load-bearing
+  # gzip-only output. Re-check when bumping Vite.
+  allowedVersions:
+    vite-prerender-plugin>vite: '8'
