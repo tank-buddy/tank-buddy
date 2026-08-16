@@ -41,9 +41,7 @@ ALLOWED_ASSET_EXTENSIONS = (".gz", ".png")
 MAX_ASSET_BYTES = 49152
 # A name, optionally preceded by the one subdirectory the build emits.
 MAX_ASSET_PATH_PARTS = 2
-_ALLOWED_NAME_CHARACTERS = (
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
-)
+_ALLOWED_NAME_CHARACTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
 
 
 def is_safe_asset_path(path: str) -> bool:

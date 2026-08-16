@@ -30,8 +30,9 @@ package = false
 target-version = "py38"
 line-length = 100
 extend-exclude = ["src/external", "typings"]
-# Modules under src/ are imported as top-level packages on the device.
-src = ["src"]
+# Modules under src/ are imported as top-level packages on the device, and
+# tools/ is on the test path for the same reason.
+src = ["src", "tools"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RET", "N", "ANN", "C90", "PL"]
@@ -91,6 +92,9 @@ stubPath = "typings"
 # The stubs are type-only; there is no importable source for them on CPython.
 reportMissingModuleSource = false
 include = ["src", "tests", "tools"]
+# pyright adds ./src to the search path on its own, but not ./tools, and the
+# tests import the build helpers from there.
+extraPaths = ["src", "tools"]
 exclude = ["src/external", "typings", "**/__pycache__"]
 pythonVersion = "3.12"
 
@@ -114,7 +118,8 @@ reportPrivateUsage = false
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+# tools/ holds build helpers that run on CPython; they get the same tests.
+pythonpath = ["src", "tools"]
 addopts = "-q"
 # The API and reset paths are coroutines; `auto` avoids marking every one.
 asyncio_mode = "auto"
