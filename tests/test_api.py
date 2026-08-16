@@ -265,3 +265,28 @@ async def test_commit_without_an_upload_is_refused(client: TestClient) -> None:
     response = await client.post("/api/web-ui/commit")
 
     assert response.status_code == 409
+
+
+async def test_a_device_without_an_interface_explains_itself(
+    client: TestClient, static_root: str
+) -> None:
+    # A firmware image freezes src/ but not the web UI, so this is the normal
+    # state of a freshly flashed device -- it must not look like a crash.
+    FileSystem().remove_tree(static_root)
+
+    response = await client.get("/")
+
+    assert response.status_code == 503
+    assert response.headers["Content-Type"] == "text/html"
+    assert response.text is not None
+    assert "no web interface is installed" in response.text
+
+
+async def test_the_api_still_answers_without_an_interface(
+    client: TestClient, static_root: str
+) -> None:
+    FileSystem().remove_tree(static_root)
+
+    response = await client.get("/api/level")
+
+    assert response.status_code == 200

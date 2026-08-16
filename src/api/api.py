@@ -30,6 +30,24 @@ DEFAULT_MIME_TYPE = "application/octet-stream"
 
 RESET_OPERATIONS = {"soft-reset": "soft", "hard-reset": "hard"}
 
+# Served when /www is absent -- which is the normal state of a device flashed
+# with firmware alone, since the image freezes src/ but not the interface. Kept
+# to one screen of plain HTML with no assets of its own, because the only thing
+# it can rely on existing is itself.
+NO_INTERFACE_PAGE = b"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TankBuddy</title></head>
+<body style="font-family:-apple-system,system-ui,sans-serif;margin:2rem;line-height:1.5">
+<h1>TankBuddy is running</h1>
+<p>The device is working, but no web interface is installed on it yet.</p>
+<p>Open the installer at
+<a href="https://tank-buddy.github.io/tank-buddy/">tank-buddy.github.io/tank-buddy</a>
+from a device with internet access, or push the interface with
+<code>mpremote fs cp -r dist/. :</code>.</p>
+<p>The API is available meanwhile: <a href="/api/level">/api/level</a></p>
+</body></html>"""
+
 # Where an upload is assembled before it replaces the live UI, and the shape a
 # file has to have to be written there at all.
 STAGING_SUFFIX = "-new"
@@ -220,8 +238,22 @@ class Api:
     def _register_static_routes(self) -> None:
         @self.http_app.route("/")
         def serve_index(request: Request) -> "Any":
+            index = f"{self.static_root}/{INDEX_FILE}{GZIP_SUFFIX}"
+
+            # A firmware image carries src/ but not the web UI, so a freshly
+            # flashed device has no /www at all. Without this it would answer
+            # every request with a 500 and look broken, when in fact everything
+            # but the interface is running and the update endpoint is ready to
+            # receive one.
+            if not self.file_system.file_exists(index):
+                return Response(
+                    body=NO_INTERFACE_PAGE,
+                    status_code=503,
+                    headers={"Content-Type": self.MIME_TYPES[".html"]},
+                )
+
             return send_file(
-                f"{self.static_root}/{INDEX_FILE}{GZIP_SUFFIX}",
+                index,
                 200,
                 self.MIME_TYPES[".html"],
                 compressed=True,
