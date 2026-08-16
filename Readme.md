@@ -11,50 +11,66 @@ Tank Buddy is a MicroPython project for the ESP32 that monitors the water level 
 - 🌍 Multilingual UI (English and German, auto-detected from the browser)
 - 🖨️ Printable 3D cases available on Thingiverse for ESP32 and sensor
 
-## Getting Started
+## Install
 
-### Prerequisites
+**[Open the installer](https://tank-buddy.github.io/tank-buddy/)** and press Connect. It writes the whole chip — bootloader, firmware and web interface — in one go, with nothing to install on your computer.
 
-- [`uv`](https://docs.astral.sh/uv/) — installs the whole Python toolchain (ruff, pyright, pytest, mpremote, mpy-cross)
-- [`Node.js`](https://nodejs.org/) 22.12+ and [`pnpm`](https://pnpm.io/) — for the web UI
+Web Serial only exists in desktop Chrome, Edge and Opera. From another browser, take `tank-buddy-<board>-full.bin` from the [latest release](https://github.com/tank-buddy/tank-buddy/releases/latest) and write it yourself:
 
-Nothing needs Docker: both toolchains are version-pinned (`uv.lock`, `packageManager`), so local runs and CI execute the same commands.
-
-### Installing MicroPython firmware
-
-Flash the ESP32 with MicroPython first, following the official [ESP32 installation guide](https://docs.micropython.org/en/latest/esp32/tutorial/intro.html). CI also builds a firmware image with the application frozen in; see `manifest.py`.
-
-### Installation
-
-```bash
-git clone https://github.com/tank-buddy/tank-buddy
-cd tank-buddy
-uv sync
-make stubs
-make upload
+```sh
+esptool --port /dev/cu.usbmodem2101 write-flash 0x0 tank-buddy-TANKBUDDY_C6-full.bin
 ```
 
-The device starts as an open access point named `TankBuddy`. Connect to it and open <http://192.168.1.1>.
+### Supported boards
 
-### Configuration
+| Chip | Board | Note |
+|---|---|---|
+| ESP32 | `TANKBUDDY_ESP32` | GPIO0 is a strapping pin — wire the sensor elsewhere |
+| ESP32-S2 | `TANKBUDDY_S2` | |
+| ESP32-S3 | `TANKBUDDY_S3` | GPIO0 is a strapping pin |
+| ESP32-C3 | `TANKBUDDY_C3` | |
+| ESP32-C6 | `TANKBUDDY_C6` | the board this is developed on |
 
-All defaults live in [`src/settings.py`](src/settings.py) — one file, one place to look. Everything listed in its `MUTABLE_FIELDS` table can also be changed at runtime through the settings panel of the web UI; those changes are persisted to `/settings.json` on the device and layered over the defaults at boot.
+4 MB of flash is enough. The ESP32-H2 and P4 have no Wi-Fi, the C2 has too little RAM, and the ESP8266 is a different port — see [`boards/README.md`](boards/README.md).
 
-Configurable at runtime:
+### First run
+
+1. The device opens an open access point named `TankBuddy`. Join it from a phone.
+2. Open <http://192.168.1.1>.
+3. Set your Wi-Fi, the tank height, the minimum sensor distance and **which pins the sensor is wired to** — the defaults (SCL 1, SDA 0) suit the C6 and will not suit every board.
+4. Save. The device restarts and is then reachable at <http://tank-buddy.local>.
+
+If a device answers with "no web interface is installed yet", it was flashed with firmware alone. Install the interface from the settings page of another device, or push it with `mpremote fs cp -r web-ui/dist/. :www/`.
+
+> The device serves plain HTTP. It is meant for a trusted LAN; there is no TLS and no authentication.
+
+## Updating
+
+The **web interface updates itself over your network**: the Software section of the settings page checks for a release, downloads it in your browser and uploads it to the device. Your configuration survives, and no cable is involved. The device has no TLS and cannot reach GitHub on its own, which is why the browser does the fetching.
+
+**Firmware needs a cable**, and rarely. Two images per release, and the difference matters:
+
+| Asset | Writes | Keeps your settings |
+|---|---|---|
+| `tank-buddy-<board>-full.bin` | whole chip, interface included | no — first install or factory reset |
+| `tank-buddy-<board>.bin` | firmware only | yes, and the interface too |
+
+There is no over-the-air firmware update. It would need two app partitions, and on 4 MB that leaves the app without headroom and the filesystem with almost nothing.
+
+## Configuration
+
+All defaults live in [`src/settings.py`](src/settings.py) — one file, one place to look. Everything in its `MUTABLE_FIELDS` table can be changed at runtime from the settings panel; changes are persisted to `/settings.json` on the device and layered over the defaults at boot.
 
 - **Wi-Fi** — mode (`C` client / `AP` access point), SSID, key
 - **MQTT** — enabled, broker host and port, user, password, topic prefix, discovery prefix
-- **Tank** — height and minimum sensor distance, both in millimetres
+- **Tank** — height and minimum sensor distance, in millimetres
+- **Sensor wiring** — the I²C SCL and SDA pins
 
-`make upload` deliberately does **not** overwrite `/settings.json` on the device, so flashing new code keeps your configuration. To push the local `settings.json` on purpose:
+`make upload` deliberately does **not** overwrite `/settings.json`, so flashing new code keeps your configuration. To push the local one on purpose:
 
-```bash
+```sh
 make provision
 ```
-
-In client mode the device is reachable over mDNS at <http://tank-buddy.local>.
-
-> The device serves plain HTTP. It is intended for a trusted LAN; there is no TLS and no authentication.
 
 ### Home Assistant
 
@@ -72,6 +88,16 @@ MQTT only starts in client mode with a broker configured — in the recovery acc
 
 ## Development
 
+Prerequisites: [`uv`](https://docs.astral.sh/uv/) for the whole Python toolchain (ruff, pyright, pytest, mpremote, mpy-cross, esptool) and [Node.js](https://nodejs.org/) 22.12+ with [`pnpm`](https://pnpm.io/) for the web UI. Nothing needs Docker — both toolchains are version-pinned (`uv.lock`, `packageManager`), so local runs and CI execute the same commands.
+
+```sh
+git clone https://github.com/tank-buddy/tank-buddy
+cd tank-buddy
+uv sync
+make stubs
+make upload
+```
+
 | Task | Command |
 |---|---|
 | **Everything** (Python + web UI) | `make check-all` |
@@ -85,6 +111,9 @@ MQTT only starts in client mode with a broker configured — in the recovery acc
 | Flash and reboot | `make upload` |
 | Push local `settings.json` to the device | `make provision` |
 | Flash and open the REPL | `make run-on-device` |
+| Merge one flashable file | `make flash-image FIRMWARE=... CHIP=esp32c6 BOARD=TANKBUDDY_C6` |
+
+Firmware itself is built in CI, out of tree, from the definitions in [`boards/`](boards/README.md) — MicroPython v1.28.0 on ESP-IDF v5.5.1. `make flash-image` takes one of those `firmware.bin` files and merges it with a LittleFS image of the web UI, which is what makes a single write at `0x0` produce a complete device.
 
 Web UI, from `web-ui/`: `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm test`.
 
@@ -118,6 +147,8 @@ web-ui/src/       Preact frontend, built into gzip-only static files
 web-ui/mocks/     MSW handlers — one definition for dev server and tests
 web-ui/tests/     Vitest browser-mode suite (real Chromium)
 manifest.py       Freezes src/ into a custom firmware image
+boards/           Board definitions, one per supported chip
+docs/             The browser installer, published with GitHub Pages
 ```
 
 ## 3D printed case
@@ -126,7 +157,7 @@ Printable models for the ESP32 and TOF sensor enclosure are on Thingiverse — i
 
 ## License
 
-MIT.
+MIT — see [`LICENSE`](LICENSE). The third-party code vendored under `src/external/` is MIT as well; [`NOTICE`](NOTICE) records the attributions.
 
 ## Links
 
