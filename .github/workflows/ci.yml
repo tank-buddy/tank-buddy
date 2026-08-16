@@ -196,3 +196,27 @@ jobs:
       - name: Keep the build tree out of the cache
         if: always() && steps.micropython-cache.outputs.cache-hit != 'true'
         run: rm -rf micropython/ports/esp32/build-${{ matrix.board }}
+
+  # One check to require in the branch ruleset, so the rule survives the board
+  # matrix changing. Requiring each matrix job by name pins the rule to today's
+  # chip list: drop a board and `main` waits forever for a check that will never
+  # report again.
+  #
+  # `if: always()` is load-bearing. Without it a failed dependency leaves this
+  # job skipped, and GitHub counts a skipped required check as satisfied -- so a
+  # red pull request would become mergeable. It therefore runs regardless and
+  # decides for itself.
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [core, web-ui, firmware]
+    if: always()
+
+    steps:
+      - name: Fail unless every job succeeded
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "core=${{ needs.core.result }}"
+          echo "web-ui=${{ needs['web-ui'].result }}"
+          echo "firmware=${{ needs.firmware.result }}"
+          exit 1
