@@ -3,6 +3,7 @@ STUBS_VERSION=1.28.*
 STUBS_PATH=typings
 MPY_CROSS=uv run mpy-cross-v6
 MPREMOTE=uv run mpremote
+ESPTOOL=uv run esptool
 BASE_PATH ?= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 WEB_UI_DIRECTORY=web-ui
 WEB_UI_PATH=$(BASE_PATH)/$(WEB_UI_DIRECTORY)
@@ -13,7 +14,8 @@ WEB_UI_PATH=$(BASE_PATH)/$(WEB_UI_DIRECTORY)
         stubs lint format typecheck test check \
         web-ui-lint web-ui-test web-ui-check check-all \
         vendor vendor-check \
-        upload provision run-on-device
+        upload provision run-on-device \
+        flash-image
 
 clean:
 	rm -Rf dist
@@ -95,3 +97,29 @@ web-ui-test:
 web-ui-check: web-ui-lint web-ui-test
 
 check-all: check web-ui-check
+
+# ---------------------------------------------------------------------------
+# One flashable file
+# ---------------------------------------------------------------------------
+
+# The vfs partition on every board this project builds for, read off a device:
+#   >>> [p.info() for p in Partition.find(Partition.TYPE_DATA)]
+#   (1, 129, 2097152, 2097152, 'vfs', False)
+VFS_OFFSET=0x200000
+
+# A firmware image freezes src/ but not the web UI, so flashing firmware alone
+# leaves a device with no interface -- it serves the "nothing installed yet"
+# page instead. This merges the firmware with a prebuilt filesystem holding the
+# UI, so one write at 0x0 produces a complete device.
+#
+#   make flash-image FIRMWARE=path/to/firmware.bin CHIP=esp32c6 BOARD=TANKBUDDY_C6
+#
+# CI has a firmware.bin per board; locally, download one from the run or build
+# it yourself. Verified end to end on an ESP32-C6: erase-flash, write this at
+# 0x0, and the device comes up with /www mounted and the access point running.
+flash-image: build-web-ui
+	@test -n "$(FIRMWARE)" || (echo "set FIRMWARE=<path to firmware.bin>" && false)
+	mkdir -p dist
+	uv run python tools/build_littlefs_image.py $(WEB_UI_DIRECTORY)/dist dist/littlefs.bin
+	$(ESPTOOL) --chip $(CHIP) merge-bin -o dist/tank-buddy-$(BOARD).bin \
+		--flash-size 4MB 0x0 $(FIRMWARE) $(VFS_OFFSET) dist/littlefs.bin

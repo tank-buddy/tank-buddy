@@ -137,6 +137,15 @@ i18n is static: `utils/i18n` imports both language files and picks one at module
 
 ### Packaging
 
+**One flashable file per board.** `make flash-image FIRMWARE=... CHIP=... BOARD=...` builds a LittleFS image from `web-ui/dist` and merges it with the firmware at the `vfs` offset, so a single write at `0x0` produces a complete device. The release workflow does the same for every board.
+
+The geometry is not guessed — it was read off an ESP32-C6 running this firmware: `os.statvfs('/')` returns block size 4096 and 512 blocks, and `Partition.find(Partition.TYPE_DATA)` puts `vfs` at `0x200000` with exactly those 2 MiB. `esp32.Partition` on the device is the authority; `tools/build_littlefs_image.py` takes a block count for boards that differ, and mounts the image back before writing it out.
+
+The whole path is verified on hardware: erase the flash, write the merged image at `0x0`, and the device comes up with `/www` mounted, the `TankBuddy` access point at 192.168.1.1, and no `boot.py` in the filesystem — meaning MicroPython accepted the image rather than reformatting it.
+
+Two artefacts per board, and the difference matters: `tank-buddy-<board>-full.bin` writes the whole chip and takes `/settings.json` with it, so it is a first install or a factory reset. `tank-buddy-<board>.bin` is firmware only and leaves the filesystem alone, so an existing device keeps its configuration *and* its interface.
+
+
 `make build-core` keeps `main.py` and `boot.py` as plain `.py` (MicroPython requires that for the boot entry points) and cross-compiles every other module to `.mpy` with `mpy-cross -O2`. It prunes `__pycache__`/`.pyc`/`.DS_Store` afterwards, because local pytest runs leave CPython bytecode in `src/` that must not reach the device.
 
 `make upload` wipes the device with `tools/wipe_device.py` — otherwise modules deleted from the source tree linger in flash and stay importable — then does one recursive `mpremote fs cp -r dist/. :`. **Adding a top-level package under `src/` needs no Makefile change.** The wipe preserves `/settings.json`; `make provision` pushes the local one on purpose.
@@ -151,7 +160,7 @@ Three things about that image are easy to get wrong:
 - **The port's own manifest is deliberately not included.** It pulls in `bundle-networking`, `umqtt`, `neopixel`, `onewire`, `dht`, `ds18x20`, `upysh` and `aioespnow`, none of which this project imports, and with `src/` alongside them the app overflowed its 2 MB partition. What is kept is not optional: `$(PORT_DIR)/modules` (which mounts the filesystem) and `extmod/asyncio`.
 - **`FROZEN_MANIFEST` must be absolute.** A relative path looks right next to `make -C`, but `makemanifest.py` runs from `build-*/esp-idf/main`, so `../../../manifest.py` resolves to `ports/esp32/manifest.py`.
 
-> **Firmware cannot be updated over the air on 4 MB.** OTA needs two app partitions, and `partitions-4MiB-ota.csv` gives each 1.5 MB against an image of ~1.9 MB. That is why the web UI stays a filesystem asset rather than being frozen in: the filesystem is the only part of the device that can be refreshed without a cable.
+> **Firmware is not updated over the air here.** OTA needs two app partitions; `partitions-4MiB-ota.csv` gives each 1.5 MB against an app of ~1.50 MB. It would fit with a few kilobytes to spare, and two slots would take 3 of the 4 MB — no headroom for the app and far less filesystem. So the web UI stays a filesystem asset rather than being frozen in: the filesystem is the only part of the device that is refreshed without a cable.
 
 ## Conventions
 
@@ -167,7 +176,7 @@ Three things about that image are easy to get wrong:
 
 ## Known gaps
 
-- `src/external/microdot/__init__.py` imports `TestClient`, so `test_client.mpy` (~3.7 KB) is not only flashed but **loaded into RAM at boot** — importing a submodule runs the package `__init__` first. Fixing it means vendoring `microdot.py` as a flat module (which is what upstream recommends anyway) and would also retire the import rewrite in `vendor.toml`. Measure `gc.mem_free()` before deciding; if it is under ~1 KB it is not worth restructuring vendored code.
+- `src/external/microdot/__init__.py` imports `TestClient`, so `test_client.mpy` (~3.7 KB) is loaded into RAM at boot. **Measured and settled: not worth fixing.** A C6 running this firmware reports `gc.mem_free() == 321504`, so the module costs about 1 % of free RAM — and having `TestClient` on the device turned out to be useful, since it exercises the HTTP routes over the REPL without a network.
 - `mqtt_v5_properties.mpy` (~1.8 KB) ships but is only imported lazily when MQTT v5 is enabled, which it is not. It costs flash, not RAM — deliberately left alone.
 - `noUncheckedIndexedAccess` is off in the web-UI tsconfig. Several places index records without guarding; enabling it would be a real tightening but touches a lot.
 - TypeScript is held at 5.x by `typescript-eslint` (see the Web UI section).
