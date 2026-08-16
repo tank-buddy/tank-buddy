@@ -1,78 +1,74 @@
+# The network stubs are only partially typed; nothing here depends on the
+# shapes they leave unknown.
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false
 from network import WLAN, hostname
-from config import Config
-from dns import Mdns, DumpDns, DnsRecord
+from time import sleep
 
-AP_IP = "192.168.1.1"
-AP_SUBNET_MASK = "255.255.255.0"
+import settings
+from settings import Runtime, Wifi, WifiMode
 
-LOCAL_DOMAIN = "api.tank-buddy.local"
-
-
-def getDnsRecord():
-    return DnsRecord(LOCAL_DOMAIN, AP_IP)
+_POLL_INTERVAL_S = 0.1
+_RECOVERY_SSID = "TankBuddy"
 
 
-def startMdns():
-    mdns = Mdns(getDnsRecord())
-    mdns.start()
-
-
-def startDumpDns():
-    dumpDns = DumpDns(getDnsRecord())
-    dumpDns.start()
-
-
-def initWifiClient(config):
+def init_wifi_client() -> None:
     wlan = WLAN(WLAN.IF_STA)
     wlan.active(True)
 
     wlan.scan()
-    wlan.connect(config.get("wifi.ssid"), config.get("wifi.key"))
+    wlan.connect(Wifi.ssid, Wifi.key)
 
-    if not wlan.isconnected():
-        raise Exception("Could not connect to wifi.")
+    for _ in range(int(Wifi.connect_timeout_s / _POLL_INTERVAL_S)):
+        if wlan.isconnected():
+            return
+        sleep(_POLL_INTERVAL_S)
+
+    raise OSError("Could not connect to wifi.")
 
 
-def initWifiAccessPoint(config):
+def init_wifi_access_point() -> None:
     wlan = WLAN(WLAN.IF_AP)
     wlan.active(True)
-    wlan.ifconfig((AP_IP, AP_SUBNET_MASK, AP_IP, AP_IP))
+    wlan.ifconfig((Wifi.ap_ip, Wifi.ap_netmask, Wifi.ap_ip, Wifi.ap_ip))
 
     try:
-        wlan.config(ssid=config.get("wifi.ssid"), key=config.get("wifi.key"))
+        wlan.config(ssid=Wifi.ssid, key=Wifi.key)
     except Exception:
-        wlan.config(ssid=config.get("wifi.ssid"))
-
-    startDumpDns()
+        wlan.config(ssid=Wifi.ssid)
 
 
-def initDefaultWifiAccessPoint():
+def init_default_wifi_access_point() -> None:
+    """Last resort: an open AP so a misconfigured device stays reachable."""
     wlan = WLAN(WLAN.IF_AP)
     wlan.active(True)
-
-    wlan.ifconfig((AP_IP, AP_SUBNET_MASK, AP_IP, AP_IP))
-
-    wlan.config(ssid="TankBuddy")
-
-    startDumpDns()
+    wlan.ifconfig((Wifi.ap_ip, Wifi.ap_netmask, Wifi.ap_ip, Wifi.ap_ip))
+    wlan.config(ssid=_RECOVERY_SSID)
 
 
-config = Config("./conf.json")
+# Nothing below may raise. Any escape here leaves the device unreachable with
+# no way to reconfigure it short of a reflash.
+try:
+    settings.load_overlay()
+except Exception as error:
+    print("settings overlay ignored:", error)
 
 try:
-    hostname(config.get("hostname"))
-except Exception:
-    hostname("tank-buddy")
+    hostname(Wifi.hostname)
+except Exception as error:
+    print("hostname not set:", error)
 
 try:
-    wifiInterface = config.get("wifi.interface")
-
-    if wifiInterface == "C":
-        initWifiClient(config)
-    elif wifiInterface == "AP":
-        initWifiAccessPoint(config)
+    if Wifi.mode == WifiMode.CLIENT:
+        init_wifi_client()
+        # main.py reads this to decide whether starting MQTT makes sense.
+        Runtime.wifi_connected = True
+    elif Wifi.mode == WifiMode.ACCESS_POINT:
+        init_wifi_access_point()
     else:
-        raise Exception("Configured interface does not exists")
-
-except Exception:
-    initDefaultWifiAccessPoint()
+        raise ValueError("Configured interface does not exist")
+except Exception as error:
+    print("falling back to recovery access point:", error)
+    try:
+        init_default_wifi_access_point()
+    except Exception as fallback_error:
+        print("recovery access point failed:", fallback_error)

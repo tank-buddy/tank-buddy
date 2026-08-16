@@ -1,0 +1,61 @@
+# Hooks run through `uv run` so they use the exact versions pinned in uv.lock,
+# rather than pre-commit's own isolated environments drifting from CI.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: pyright
+        name: pyright
+        entry: uv run pyright
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+        require_serial: true
+
+      # The web UI had no local check at all, so a stray formatting difference
+      # only surfaced after a four-minute pipeline. These run the same scripts
+      # CI does, and only when something under web-ui/ actually changed --
+      # together they cost about five seconds.
+      #
+      # `pnpm --dir` rather than a `cd`, so the hook works from wherever git
+      # invoked it. They need web-ui/node_modules, which `pnpm install` provides.
+      - id: web-ui-format
+        name: prettier
+        # Writes, like ruff-format above: pre-commit then reports the changed
+        # files and stops, which beats failing with "now go run prettier".
+        entry: pnpm --dir web-ui run format
+        language: system
+        files: ^web-ui/
+        pass_filenames: false
+        require_serial: true
+
+      - id: web-ui-lint
+        name: eslint
+        # Check-only, unlike prettier. These rules are type-aware, and an
+        # automatic --fix there rewrites logic rather than whitespace.
+        entry: pnpm --dir web-ui run lint
+        language: system
+        files: ^web-ui/
+        pass_filenames: false
+        require_serial: true
+
+      - id: web-ui-typecheck
+        name: tsc
+        entry: pnpm --dir web-ui run typecheck
+        language: system
+        files: ^web-ui/
+        pass_filenames: false
+        require_serial: true

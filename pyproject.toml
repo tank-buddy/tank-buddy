@@ -1,0 +1,128 @@
+[project]
+name = "tank-buddy"
+version = "0.1.0"
+description = "Water tank level monitor running on an ESP32 (MicroPython)"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14",
+    "pyright>=1.1.400",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "mpremote>=1.25",
+    # "v6" is the .mpy bytecode version, not the MicroPython release; the
+    # package itself only ever reached 1.1.x.
+    "mpy-cross-v6>=1.1.2",
+    "pre-commit>=4.0",
+    "littlefs-python>=0.18.0",
+    "esptool>=5.3.1",
+]
+
+# src/ is MicroPython firmware code, not an installable CPython distribution.
+[tool.uv]
+package = false
+
+# ---------------------------------------------------------------------------
+# ruff — linting AND formatting (replaces black/isort/flake8)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+# MicroPython's syntax level, not the CPython used to run the tooling.
+target-version = "py38"
+line-length = 100
+extend-exclude = ["src/external", "typings"]
+# Modules under src/ are imported as top-level packages on the device, and
+# tools/ is on the test path for the same reason.
+src = ["src", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RET", "N", "ANN", "C90", "PL"]
+ignore = [
+    # SIM105 suggests contextlib.suppress, but contextlib is not built into
+    # MicroPython. The `try: from typing import ... except ImportError: pass`
+    # guard around type-only imports has to stay a plain statement.
+    "SIM105",
+    # UP037 strips quotes from annotations. Annotations here are deliberately
+    # strings: the names they reference (Callable, `X | None`, PEP 585 generics)
+    # do not resolve on device or under target-version py38. MicroPython discards
+    # annotations at compile time, so the quotes cost nothing.
+    "UP037",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.isort]
+# These ship with the MicroPython firmware, so they belong in the stdlib group
+# rather than being sorted as third-party dependencies.
+extra-standard-library = [
+    # Ship with the MicroPython firmware, so they belong in the stdlib group
+    # rather than being sorted as third-party dependencies.
+    "esp",
+    "esp32",
+    "machine",
+    "micropython",
+    "network",
+    "ubinascii",
+    # Stdlib since 3.11, but target-version is py38 for the device code, so
+    # ruff would otherwise sort it as third-party in the dev-machine tooling.
+    "tomllib",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test fakes stand in for hardware modules; their signatures mirror upstream
+# APIs we do not control, so annotating every dummy adds noise, not safety.
+"tests/**" = ["ANN401", "PLR2004"]
+# manifest.py is executed by the MicroPython build system, which injects
+# include()/freeze() into the namespace -- it is a build DSL, not a module.
+"manifest.py" = ["F821"]
+# Microdot route handlers are polymorphic by design: a handler may return a
+# dict, a (body, status) tuple, a string or a Response. `Any` is the honest
+# annotation for that, not a gap in typing.
+"src/api/api.py" = ["ANN401"]
+# The mqtt_as client is vendored and unannotated; `Any` is the honest type for
+# it, and the publisher is deliberately duck-typed against a fake in tests.
+"src/mqtt/mqtt.py" = ["ANN401"]
+
+# ---------------------------------------------------------------------------
+# pyright — strict type checking against the MicroPython stubs in typings/
+# ---------------------------------------------------------------------------
+[tool.pyright]
+typeCheckingMode = "strict"
+stubPath = "typings"
+# The stubs are type-only; there is no importable source for them on CPython.
+reportMissingModuleSource = false
+include = ["src", "tests", "tools"]
+# pyright adds ./src to the search path on its own, but not ./tools, and the
+# tests import the build helpers from there.
+extraPaths = ["src", "tools"]
+exclude = ["src/external", "typings", "**/__pycache__"]
+pythonVersion = "3.12"
+
+# The vendored Microdot/VL53L0X code carries no annotations, so anything the
+# tests touch through it degrades to Unknown. That is a property of upstream
+# code we deliberately do not modify, not of the tests -- keep the rest of
+# strict mode active here.
+[[tool.pyright.executionEnvironments]]
+root = "tests"
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+reportUnknownParameterType = false
+# pytest fixtures are referenced by name, never called directly, and tests
+# legitimately assert on internals.
+reportUnusedFunction = false
+reportPrivateUsage = false
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# tools/ holds build helpers that run on CPython; they get the same tests.
+pythonpath = ["src", "tools"]
+addopts = "-q"
+# The API and reset paths are coroutines; `auto` avoids marking every one.
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

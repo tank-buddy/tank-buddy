@@ -1,0 +1,51 @@
+# Pins for the third-party code copied into src/external/.
+#
+# Vendoring is deliberate (see CLAUDE.md), but a copy without a pin is not a
+# pin -- it is a snapshot nobody can date. This file is what makes the choice
+# defensible: `make vendor` reproduces exactly these versions, and the git diff
+# is the review.
+#
+# Updating: bump `ref`, run `make vendor`, read the diff, run `make check-all`,
+# commit. Never let an update land unreviewed -- this code runs on a device
+# that is awkward to reflash.
+#
+# `make vendor-check` reports when upstream has moved past a pin. It never
+# changes anything.
+
+[microdot]
+repo = "miguelgrinberg/microdot"
+ref = "v2.6.2"
+# Upstream ships a package; we take only the two modules we actually use.
+# src/external/microdot/__init__.py is OURS -- it rewrites the relative imports
+# to the absolute paths MicroPython needs -- so it is not listed here and
+# `make vendor` must not touch it.
+files = [
+  { from = "src/microdot/microdot.py", to = "src/external/microdot/microdot.py" },
+  # test_client.py imports its sibling as `microdot.microdot`, which only
+  # resolves if the package sits at the import root. Ours lives under
+  # `external.`, so the import is rewritten on fetch. `make vendor` fails loudly
+  # if upstream ever changes this line, rather than writing a broken file.
+  { from = "src/microdot/test_client.py", to = "src/external/microdot/test_client.py", rewrite = [
+    { search = "from microdot.microdot import", replace = "from external.microdot.microdot import" },
+  ] },
+]
+
+[mqtt_as]
+repo = "peterhinch/micropython-mqtt"
+# No tags upstream, so the pin is a commit. Bump it deliberately.
+ref = "980a3fe229adfc7906203ef1f5e1e18e8e3ff0af"
+version_note = "VERSION = (0, 8, 5)"
+files = [
+  { from = "mqtt_as/__init__.py", to = "src/external/mqtt_as/__init__.py" },
+  { from = "mqtt_as/mqtt_v5_properties.py", to = "src/external/mqtt_as/mqtt_v5_properties.py" },
+]
+
+[vl53l0x]
+repo = "antirez/vl53l0x-nb"
+# No tags either. This fork exists for its non-blocking API
+# (start_range_request / reading_available / get_range_value), which
+# WaterTank.sample() depends on -- do not swap it for a blocking driver.
+ref = "5fc6757284a27be15bfabb09719dbb4bb3eebfc6"
+files = [
+  { from = "vl53l0x_nb.py", to = "src/external/vl53l0x.py" },
+]

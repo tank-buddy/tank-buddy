@@ -1,2 +1,0 @@
-class DictSchemaException(Exception):
-    pass

@@ -3,24 +3,220 @@ name: CI
 on:
   pull_request
 
+# Nothing here writes to the repository, and the org default is read-only
+# anyway. Stated explicitly so a change to that default cannot silently widen
+# what these jobs may do.
+permissions:
+  contents: read
+
+env:
+  MICROPYTHON_VERSION: v1.28.0
+
 jobs:
-  continous-integration:
+  core:
+    name: Lint, typecheck and test (Python)
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up docker buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
-    - name: Build docker images
-      run: make docker-build-images
+      - name: Install dependencies
+        run: uv sync --locked
 
-    - name: Run ruff (linting)
-      run: make docker-lint
-      continue-on-error: false
+      - name: Install MicroPython stubs
+        run: make stubs
 
-    - name: Run tests
-      run: make docker-test
-      continue-on-error: false
+      - name: Lint
+        run: make lint
+
+      - name: Typecheck
+        run: make typecheck
+
+      - name: Test
+        run: make test
+
+  web-ui:
+    name: Lint, test and build (web UI)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-ui
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          # `defaults.run.working-directory` above applies to `run:` steps only,
+          # never to `uses:` steps, so the action looks for a package.json in the
+          # repo root -- where there is none. Point it at the single place the
+          # pnpm version is pinned instead of duplicating the version here.
+          package_json_file: web-ui/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # Pinned rather than read from engines.node (">=22.12"), which would
+          # float onto whatever Node is newest.
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web-ui/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Browser-mode tests need a real Chromium; the download is the slow part,
+      # so it is cached on the resolved Playwright version.
+      - name: Resolve Playwright version
+        id: playwright
+        run: echo "version=$(pnpm ls playwright --json | jq -r '.[0].devDependencies.playwright.version')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Chromium system deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
+      - name: Format check
+        run: pnpm run format:check
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Build
+        run: pnpm run build
+
+  firmware:
+    name: Build firmware (${{ matrix.board }})
+    runs-on: ubuntu-latest
+    strategy:
+      # One board failing to fit or compile is worth knowing about for all of
+      # them, so the matrix runs to completion.
+      fail-fast: false
+      matrix:
+        # Every chip MicroPython ships a generic board for that also has Wi-Fi.
+        # H2 has none, the C2 is too small for this application, ESP8266 is a
+        # separate port, and the P4 needs a companion radio.
+        #
+        # S2 and S3 were out under v1.26.0, which pinned espressif/esp_tinyusb
+        # ~1.0.0 and would not compile against the TinyUSB in IDF v5.4.2.
+        # v1.28.0 replaced that dependency with MicroPython's own fork.
+        board:
+          - TANKBUDDY_ESP32
+          - TANKBUDDY_S2
+          - TANKBUDDY_S3
+          - TANKBUDDY_C3
+          - TANKBUDDY_C6
+    # Only `core` gates this: manifest.py freezes src/ alone, so the web UI is
+    # not part of the firmware image and would only serialise the pipeline.
+    needs: [core]
+    container:
+      # The version ports/esp32/README.md names as recommended for this
+      # MicroPython release. This tag and MICROPYTHON_VERSION are two halves of
+      # one decision: bump them together or the toolchain and the port drift
+      # apart.
+      image: espressif/idf:v5.5.1
+      options: --user 0
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # Cloning MicroPython with recursive submodules and compiling mpy-cross
+      # from source dominated the pipeline; both depend only on the version.
+      - name: Cache MicroPython checkout and mpy-cross
+        uses: actions/cache@v4
+        id: micropython-cache
+        with:
+          path: micropython
+          key: micropython-${{ env.MICROPYTHON_VERSION }}-${{ runner.os }}
+
+      - name: Clone MicroPython
+        if: steps.micropython-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 -b "$MICROPYTHON_VERSION" https://github.com/micropython/micropython.git
+          git -C micropython submodule update --init --depth 1 --recursive
+
+      - name: Compile mpy-cross
+        if: steps.micropython-cache.outputs.cache-hit != 'true'
+        run: make -C micropython/mpy-cross
+
+      - name: Build Firmware
+        # A container job overrides the image's entrypoint, so the IDF
+        # environment is never exported and idf.py is not on PATH. Sourcing it
+        # here needs bash; the default shell in a container job is `sh -e`.
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          # Both paths must be absolute. A relative FROZEN_MANIFEST looks right
+          # next to `make -C`, but makemanifest.py is invoked by ninja from
+          # build-*/esp-idf/main, so `../../../manifest.py` resolved to
+          # ports/esp32/manifest.py and the freeze step failed.
+          make -C micropython/ports/esp32 \
+            BOARD_DIR="$GITHUB_WORKSPACE/boards/${{ matrix.board }}" \
+            FROZEN_MANIFEST="$GITHUB_WORKSPACE/manifest.py"
+
+      # Named per board, and "firmware" rather than the project name: this image
+      # holds src/ frozen in, but not the web UI, which is a filesystem asset.
+      # It is a build check, not something to hand to a user.
+      - name: Archive and upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.board }}
+          path: micropython/ports/esp32/build-${{ matrix.board }}/firmware.bin
+          retention-days: 7
+
+      # The cache key only carries the MicroPython version, so whatever is on
+      # disk at the end of a cache-miss run is what every later run restores.
+      # Keeping the ESP32 build tree in there would pin ~1 GB of object files
+      # from one commit under a key that never changes again.
+      - name: Keep the build tree out of the cache
+        if: always() && steps.micropython-cache.outputs.cache-hit != 'true'
+        run: rm -rf micropython/ports/esp32/build-${{ matrix.board }}
+
+  # One check to require in the branch ruleset, so the rule survives the board
+  # matrix changing. Requiring each matrix job by name pins the rule to today's
+  # chip list: drop a board and `main` waits forever for a check that will never
+  # report again.
+  #
+  # `if: always()` is load-bearing. Without it a failed dependency leaves this
+  # job skipped, and GitHub counts a skipped required check as satisfied -- so a
+  # red pull request would become mergeable. It therefore runs regardless and
+  # decides for itself.
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [core, web-ui, firmware]
+    if: always()
+
+    steps:
+      - name: Fail unless every job succeeded
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "core=${{ needs.core.result }}"
+          echo "web-ui=${{ needs['web-ui'].result }}"
+          echo "firmware=${{ needs.firmware.result }}"
+          exit 1

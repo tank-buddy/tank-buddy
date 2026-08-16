@@ -1,0 +1,44 @@
+version: 2
+
+# Vendored code under src/external/ is deliberately absent from this file:
+# Dependabot cannot see it, and it is pinned in vendor.toml on purpose. Taking
+# one of those updates means `make vendor` and reading the diff, because that
+# code runs on a device that is awkward to reflash. See the readme.
+updates:
+  # Actions go stale quietly, and a stale one is a supply-chain question rather
+  # than a feature question. Grouped, because a week's worth is one review.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ['*']
+    ignore:
+      # The stubs track the MicroPython version the firmware is built from, and
+      # that pairing is set in the workflows. Bumping them on their own is how
+      # they came to sit two releases behind the firmware and hid a real
+      # signature drift.
+      - dependency-name: micropython-esp32-stubs
+
+  - package-ecosystem: npm
+    directory: /web-ui
+    schedule:
+      interval: weekly
+    groups:
+      web-ui:
+        patterns: ['*']
+    ignore:
+      # Held at 5.x by typescript-eslint, which caps below 6.1 even in its
+      # canary. Without this, Dependabot reopens the same 7.x pull request every
+      # week and it has to be closed every week.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
