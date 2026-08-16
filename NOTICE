@@ -1,0 +1,46 @@
+Tank Buddy
+Copyright (c) 2026 Tank Buddy Contributors
+
+This product includes third-party software that is redistributed inside this
+repository rather than installed at build time. Every copy lives under
+`src/external/` and is pinned to an exact upstream ref in `vendor.toml`; see
+the "Updating vendored dependencies" section of Readme.md.
+
+All of it is MIT licensed, so it is redistributable under the same terms as
+this project. The attributions below are required by those licenses.
+
+--------------------------------------------------------------------------------
+Microdot -- src/external/microdot/microdot.py, test_client.py
+--------------------------------------------------------------------------------
+Copyright (c) 2019 Miguel Grinberg
+https://github.com/miguelgrinberg/microdot -- MIT License
+
+`src/external/microdot/__init__.py` is NOT upstream code. It is part of this
+project and only rewrites the package's relative imports to the absolute paths
+MicroPython needs.
+
+--------------------------------------------------------------------------------
+mqtt_as -- src/external/mqtt_as/
+--------------------------------------------------------------------------------
+Copyright (c) Peter Hinch
+https://github.com/peterhinch/micropython-mqtt -- MIT License
+
+--------------------------------------------------------------------------------
+VL53L0X driver -- src/external/vl53l0x.py
+--------------------------------------------------------------------------------
+Copyright (c) 2017 Tony DiCola for Adafruit Industries
+Modified by Kevin Zhu to run on the ESP32 under MicroPython
+Modified by Salvatore Sanfilippo (antirez) for the non-blocking API
+https://github.com/antirez/vl53l0x-nb -- MIT License (SPDX header in the file)
+
+The upstream repository carries no LICENSE file; the licence is declared in the
+file header as `SPDX-License-Identifier: MIT`, which the copy here preserves.
+
+--------------------------------------------------------------------------------
+MicroPython
+--------------------------------------------------------------------------------
+Copyright (c) 2013-2025 Damien P. George and contributors
+https://github.com/micropython/micropython -- MIT License
+
+Not vendored, but the released firmware images are MicroPython builds with this
+project's `src/` frozen in, so they carry MicroPython's copyright as well.
