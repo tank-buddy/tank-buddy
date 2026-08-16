@@ -126,7 +126,9 @@ i18n is static: `utils/i18n` imports both language files and picks one at module
 
 **MSW's service worker must never reach the device.** `msw init` puts `mockServiceWorker.js` (9.6 kB, ~3.2 kB gzipped) in `public/`, which Vite copies verbatim into the build. Two guards in `vite.config.ts`: the compression plugin excludes it, and `excludeMockWorker` deletes it and then **throws** if anything named like it survives. Do not weaken that to a warning — it would pass CI and only show up as lost flash.
 
-`pnpm-workspace.yaml` holds `onlyBuiltDependencies` (pnpm 11 blocks native postinstall scripts otherwise) and a `peerDependencyRules` entry for `vite-prerender-plugin`, which still declares vite 5-7 while being instantiated unconditionally by `@preact/preset-vite`. Re-check that when bumping Vite.
+`pnpm-workspace.yaml` holds `allowBuilds` and a `peerDependencyRules` entry for `vite-prerender-plugin`, which still declares vite 5-7 while being instantiated unconditionally by `@preact/preset-vite`. Re-check that when bumping Vite.
+
+> **`allowBuilds`, not `onlyBuiltDependencies`.** pnpm 11 stopped treating the older list as a decision, so its entries were ignored and `pnpm install` failed with `ERR_PNPM_IGNORED_BUILDS`. This class of break is invisible locally — an existing `node_modules` makes pnpm skip the step — so reproduce it the way CI sees it: copy `package.json`, `pnpm-lock.yaml` and `pnpm-workspace.yaml` into an empty directory and run `pnpm install --frozen-lockfile` there.
 
 ### Packaging
 

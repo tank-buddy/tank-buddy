@@ -1,11 +1,18 @@
-# pnpm 11 blocks postinstall scripts unless a package is listed here.
-# @tailwindcss/oxide and esbuild ship native binaries and genuinely need their
-# build step; msw's postinstall keeps public/mockServiceWorker.js in sync with
-# the installed version. Without this a fresh `pnpm install` exits non-zero.
-onlyBuiltDependencies:
-  - '@tailwindcss/oxide'
-  - esbuild
-  - msw
+# pnpm refuses to run a dependency's build script until it has been decided on,
+# and a fresh `pnpm install` exits non-zero while any decision is missing --
+# which is invisible locally, because an existing node_modules makes pnpm skip
+# the step entirely. It only surfaces on a clean checkout, i.e. in CI.
+#
+# This is `allowBuilds`, not the older `onlyBuiltDependencies`: pnpm 11 no
+# longer treats that list as a decision, so entries there were silently ignored
+# and the build still counted as unapproved.
+#
+# msw's postinstall keeps public/mockServiceWorker.js in step with the installed
+# version; @tailwindcss/oxide and esbuild ship native binaries.
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true
+  msw: true
 
 peerDependencyRules:
   # @preact/preset-vite pulls in vite-prerender-plugin, which still declares

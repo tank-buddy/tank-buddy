@@ -147,7 +147,12 @@ jobs:
         shell: bash
         run: |
           . "$IDF_PATH/export.sh"
-          make -C micropython/ports/esp32 BOARD=ESP32_GENERIC_C6 FROZEN_MANIFEST=../../../manifest.py
+          # FROZEN_MANIFEST must be absolute. A relative path looks right next to
+          # `make -C`, but makemanifest.py is invoked by ninja from
+          # build-*/esp-idf/main, so `../../../manifest.py` resolved to
+          # ports/esp32/manifest.py and the freeze step failed.
+          make -C micropython/ports/esp32 BOARD=ESP32_GENERIC_C6 \
+            FROZEN_MANIFEST="$GITHUB_WORKSPACE/manifest.py"
 
       - name: Archive and upload firmware
         uses: actions/upload-artifact@v4
