@@ -4,6 +4,12 @@ on:
   release:
     types: [created]
 
+# Read for the building jobs; the publish job widens this for itself. The
+# repository default is read-only, so without this `gh release upload` fails at
+# the very last step of a release.
+permissions:
+  contents: read
+
 env:
   MICROPYTHON_VERSION: v1.28.0
 
@@ -155,6 +161,9 @@ jobs:
     name: Merge the flash images and attach everything
     runs-on: ubuntu-latest
     needs: [web-ui, firmware]
+    permissions:
+      # The one job that attaches assets to the release.
+      contents: write
 
     steps:
       - name: Checkout code

@@ -3,6 +3,12 @@ name: CI
 on:
   pull_request
 
+# Nothing here writes to the repository, and the org default is read-only
+# anyway. Stated explicitly so a change to that default cannot silently widen
+# what these jobs may do.
+permissions:
+  contents: read
+
 env:
   MICROPYTHON_VERSION: v1.28.0
 
