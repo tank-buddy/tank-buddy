@@ -13,7 +13,7 @@ import type {
 // socket would leak one pending request per poll interval, forever.
 const REQUEST_TIMEOUT_MS = 8000
 
-type Method = 'GET' | 'PATCH' | 'PUT'
+type Method = 'GET' | 'PATCH' | 'PUT' | 'POST'
 
 interface RequestOptions {
   method?: Method
@@ -73,3 +73,36 @@ export const putSystemOperation = (
     `/api/system-operations/${identifier}`,
     { method: 'PUT' }
   )
+
+// The web-UI update is three calls rather than one upload: the device has no
+// archive format, so the files are staged individually and swapped in at the
+// end. An abandoned run leaves the previous UI serving.
+
+export const beginWebUiUpdate = (): Promise<SystemOperationResultInterface> =>
+  request<SystemOperationResultInterface>('/api/web-ui', { method: 'POST' })
+
+export const commitWebUiUpdate = (): Promise<SystemOperationResultInterface> =>
+  request<SystemOperationResultInterface>('/api/web-ui/commit', {
+    method: 'POST',
+  })
+
+/**
+ * Sent as raw bytes rather than through `request`, which serialises JSON. The
+ * device writes the body to the file verbatim, so anything else would corrupt
+ * the asset.
+ */
+export const putWebUiAsset = async (
+  path: string,
+  content: Uint8Array
+): Promise<void> => {
+  const response = await fetch(`/api/web-ui/${path}`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/octet-stream' },
+    body: content as BodyInit,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Upload of ${path} failed with ${response.status}`)
+  }
+}

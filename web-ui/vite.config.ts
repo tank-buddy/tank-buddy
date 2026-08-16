@@ -51,6 +51,12 @@ const excludeMockWorker = (): Plugin => ({
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    // The release tag, set by the release workflow. A local build says "dev",
+    // which the update panel shows verbatim -- better than a fake version
+    // number that would compare wrongly against a real release.
+    __UI_VERSION__: JSON.stringify(process.env.UI_VERSION ?? 'dev'),
+  },
   css: {
     transformer: 'lightningcss',
     lightningcss: {

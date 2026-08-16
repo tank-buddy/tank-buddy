@@ -52,7 +52,44 @@ const validate = (patch: Patch): string | null => {
   return null
 }
 
+/**
+ * The release the update panel would find. Mocked like the device API so both
+ * `pnpm dev` and the test suite stay offline -- and so the flow can be walked
+ * through without publishing a release first.
+ */
+export const RELEASE_API =
+  'https://api.github.com/repos/tank-buddy/tank-buddy/releases/latest'
+const BUNDLE_URL = 'https://example.test/web-ui.json'
+
+export const RELEASE_VERSION = 'v9.9.9'
+
+/** Base64 of a one-byte payload; content does not matter to the transfer. */
+const ENCODED_ASSET = 'eA=='
+
 export const handlers = [
+  http.get(RELEASE_API, () =>
+    HttpResponse.json({
+      tag_name: RELEASE_VERSION,
+      assets: [{ name: 'web-ui.json', browser_download_url: BUNDLE_URL }],
+    })
+  ),
+
+  http.get(BUNDLE_URL, () =>
+    HttpResponse.json({
+      version: RELEASE_VERSION,
+      files: {
+        'index.html.gz': ENCODED_ASSET,
+        'assets/index-abc123.js.gz': ENCODED_ASSET,
+      },
+    })
+  ),
+
+  http.post('/api/web-ui', () => HttpResponse.json({ success: true })),
+
+  http.put('/api/web-ui/*', () => HttpResponse.json({ success: true })),
+
+  http.post('/api/web-ui/commit', () => HttpResponse.json({ success: true })),
+
   http.get('/api/level', () => HttpResponse.json(level())),
 
   http.get('/api/settings', () => HttpResponse.json(SETTINGS)),

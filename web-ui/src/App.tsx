@@ -1,6 +1,7 @@
 import LevelIndicator from './components/LevelIndicator'
 import NavBar from './components/NavBar'
 import SettingsPanel from './components/SettingsPanel'
+import UpdatePanel from './components/UpdatePanel'
 
 // One page, no router: the fill level is the whole point and the settings are
 // the second section rather than a destination. The collapsed disclosure panel
@@ -12,6 +13,7 @@ const App = () => (
     <main class="mx-auto w-full max-w-120 px-4 pt-6 pb-8">
       <LevelIndicator />
       <SettingsPanel />
+      <UpdatePanel />
     </main>
   </div>
 )

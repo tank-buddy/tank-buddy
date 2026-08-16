@@ -82,6 +82,11 @@ Each subdirectory is a package whose `__init__.py` re-exports its class (`from h
 | GET | `/api/settings` | current values of every `MUTABLE_FIELDS` entry |
 | PATCH | `/api/settings` | validate + persist; returns `{success, reboot_required}` or 400 |
 | PUT | `/api/system-operations/{soft-reset\|hard-reset}` | reset after a delay |
+| POST | `/api/web-ui` | start a UI update: create the staging tree |
+| PUT | `/api/web-ui/{path}` | write one asset into the staging tree |
+| POST | `/api/web-ui/commit` | swap staging in, drop the previous tree |
+
+**Updating the web UI is browser-mediated.** The device has no TLS and cannot reach GitHub, so the page fetches the release over HTTPS and hands the files over plain HTTP on the LAN. Firmware cannot be refreshed this way at all — OTA needs two app partitions and `partitions-4MiB-ota.csv` gives each 1.5 MB against an image of ~1.9 MB — which is why the UI stays a filesystem asset. Three calls rather than one upload because there is no archive format on the device, and a staging tree means an abandoned update leaves the previous UI serving. The endpoint is unauthenticated like the rest of the API, so `is_safe_asset_path` is the only guard: one optional `assets/` level, a conservative character set, an extension the build emits, and a size ceiling. Do not loosen it to accept a path the build does not produce.
 
 `web-ui/src/utils/api/types.ts` mirrors this surface; it and `MUTABLE_FIELDS` must be kept in sync.
 
