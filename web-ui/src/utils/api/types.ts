@@ -21,6 +21,10 @@ export interface SettingsInterface {
     height: number
     min_distance: number
   }
+  board: {
+    i2c_scl_pin: number
+    i2c_sda_pin: number
+  }
 }
 
 /** Response of `GET /api/level`. Null until the first sensor reading. */

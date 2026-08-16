@@ -2,8 +2,12 @@ import { http, HttpResponse } from 'msw'
 import { level, NO_READING, SETTINGS } from './fixtures'
 
 // Mirrors the reboot_required flags in MUTABLE_FIELDS (src/settings.py):
-// connection settings need a restart, tank geometry takes effect at once.
-const REBOOT_REQUIRED_SECTIONS = ['wifi', 'mqtt']
+// connection settings and the sensor wiring need a restart -- the I2C bus is
+// built once at start-up -- while tank geometry takes effect at once.
+const REBOOT_REQUIRED_SECTIONS = ['wifi', 'mqtt', 'board']
+
+/** Union of every supported chip's GPIO range; matches _GPIO_PIN_MAX. */
+const GPIO_PIN_MAX = 48
 
 const RESET_OPERATIONS = ['soft-reset', 'hard-reset']
 const RESET_DELAY_S = 5
@@ -13,7 +17,7 @@ type Patch = Partial<Record<string, Record<string, PatchValue | undefined>>>
 
 /** Mirrors the validators in `settings.MUTABLE_FIELDS`. */
 const validate = (patch: Patch): string | null => {
-  const { wifi, mqtt, tank } = patch
+  const { wifi, mqtt, tank, board } = patch
 
   if (wifi?.mode !== undefined && !['C', 'AP'].includes(String(wifi.mode))) {
     return 'Value for wifi.mode is out of range'
@@ -32,6 +36,17 @@ const validate = (patch: Patch): string | null => {
   }
   if (tank?.min_distance !== undefined && Number(tank.min_distance) < 0) {
     return 'Value for tank.min_distance is out of range'
+  }
+
+  for (const pin of ['i2c_scl_pin', 'i2c_sda_pin'] as const) {
+    const value = board?.[pin]
+
+    if (
+      value !== undefined &&
+      (Number(value) < 0 || Number(value) > GPIO_PIN_MAX)
+    ) {
+      return `Value for board.${pin} is out of range`
+    }
   }
 
   return null

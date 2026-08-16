@@ -26,7 +26,7 @@ interface Field {
 }
 
 /** Group order on screen; the section is the first segment of every path. */
-const SECTIONS = ['wifi', 'mqtt', 'tank']
+const SECTIONS = ['wifi', 'mqtt', 'tank', 'board']
 
 const FIELDS: Field[] = [
   {
@@ -49,6 +49,10 @@ const FIELDS: Field[] = [
     label: 'label.tank-min-distance',
     kind: 'number',
   },
+  // The same firmware image runs on several ESP32 variants, which are not wired
+  // alike -- GPIO0 is a strapping pin on the classic ESP32 and the S3.
+  { path: 'board.i2c_scl_pin', label: 'label.i2c-scl-pin', kind: 'number' },
+  { path: 'board.i2c_sda_pin', label: 'label.i2c-sda-pin', kind: 'number' },
 ]
 
 const RESETS: SystemOperationIdentifier[] = ['soft-reset', 'hard-reset']

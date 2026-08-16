@@ -24,6 +24,10 @@ export const SETTINGS: SettingsInterface = {
     height: TANK_HEIGHT,
     min_distance: MIN_DISTANCE,
   },
+  board: {
+    i2c_scl_pin: 1,
+    i2c_sda_pin: 0,
+  },
 }
 
 /**

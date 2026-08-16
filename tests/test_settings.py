@@ -91,11 +91,24 @@ def test_apply_rejects_readonly_fields(overlay: str) -> None:
         {"mqtt": {"topic_prefix": "/leading"}},
         {"mqtt": {"topic_prefix": "trailing/"}},
         {"mqtt": {"discovery_prefix": ""}},
+        {"board": {"i2c_scl_pin": -1}},
+        {"board": {"i2c_sda_pin": 49}},
     ],
 )
 def test_apply_rejects_out_of_range_values(patch: "dict[str, object]", overlay: str) -> None:
     with pytest.raises(SettingsError):
         settings.apply(patch, overlay)
+
+
+def test_sensor_pins_are_changeable_and_need_a_reboot(overlay: str) -> None:
+    # One firmware image serves several ESP32 variants, and GPIO0 is a strapping
+    # pin on the classic ESP32 and the S3 -- so the wiring has to be reachable
+    # from the recovery access point rather than baked into the build.
+    reboot_required = settings.apply({"board": {"i2c_scl_pin": 22, "i2c_sda_pin": 21}}, overlay)
+
+    assert settings.Board.i2c_scl_pin == 22
+    assert settings.Board.i2c_sda_pin == 21
+    assert reboot_required is True
 
 
 def test_apply_rejects_wrong_types(overlay: str) -> None:

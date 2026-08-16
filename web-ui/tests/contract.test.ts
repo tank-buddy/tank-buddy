@@ -21,6 +21,8 @@ const FORM_PATHS = [
   'mqtt.topic_prefix',
   'tank.height',
   'tank.min_distance',
+  'board.i2c_scl_pin',
+  'board.i2c_sda_pin',
 ]
 
 const flatten = (value: object, prefix = ''): string[] =>

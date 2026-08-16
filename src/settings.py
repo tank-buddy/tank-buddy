@@ -55,6 +55,9 @@ _TANK_MIN_DISTANCE_MM = const(30)
 # --- Hardware / timing ------------------------------------------------------
 _I2C_SCL_PIN = const(1)
 _I2C_SDA_PIN = const(0)
+# Highest GPIO number across the chips this project ships firmware for; the
+# ESP32-S3 goes to 48, every other supported variant stops lower.
+_GPIO_PIN_MAX = const(48)
 _HTTP_PORT = const(80)
 _MEASUREMENT_INTERVAL_S = const(5)
 _DISTANCE_BUFFER_SIZE = const(5)
@@ -158,6 +161,14 @@ def _always_valid(_value: object) -> bool:
     return True
 
 
+def _is_gpio_pin(value: int) -> bool:
+    # Deliberately the union of every supported chip's range rather than the
+    # narrowest one: the firmware image is shared across boards, so a per-chip
+    # bound here would reject a pin that is perfectly valid on the device in
+    # front of the user. An out-of-range pin fails loudly in machine.Pin.
+    return 0 <= value <= _GPIO_PIN_MAX
+
+
 def _is_topic(value: str) -> bool:
     # MQTT topic levels are slash-separated; leading or trailing slashes create
     # an empty level, which is legal but almost always a typo.
@@ -201,6 +212,13 @@ MUTABLE_FIELDS: "dict[str, _Field]" = {
     "mqtt.discovery_prefix": _Field(Mqtt, "discovery_prefix", str, _is_topic, True),
     "tank.height": _Field(Tank, "height", int, _is_positive, False),
     "tank.min_distance": _Field(Tank, "min_distance", int, _is_not_negative, False),
+    # Configurable because one firmware image serves several ESP32 variants and
+    # the sensor is not wired the same way on all of them -- on the classic
+    # ESP32 and the S3, GPIO0 is a strapping pin, so the defaults below are only
+    # sane on the C6. main.py builds the SoftI2C bus once at start-up, hence the
+    # reboot.
+    "board.i2c_scl_pin": _Field(Board, "i2c_scl_pin", int, _is_gpio_pin, True),
+    "board.i2c_sda_pin": _Field(Board, "i2c_sda_pin", int, _is_gpio_pin, True),
 }
 
 

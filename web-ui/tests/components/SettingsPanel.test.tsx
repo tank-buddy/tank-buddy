@@ -17,7 +17,9 @@ const capturePatch = () => {
       >
       seen.push(body)
 
-      const rebootRequired = ['wifi', 'mqtt'].some((section) => section in body)
+      const rebootRequired = ['wifi', 'mqtt', 'board'].some(
+        (section) => section in body
+      )
 
       return HttpResponse.json({
         success: true,
@@ -191,6 +193,26 @@ test('MQTT is enabled with the switch', async () => {
     expect(patches).toHaveLength(1)
   })
   expect(patches[0]).toEqual({ mqtt: { enabled: true } })
+})
+
+test('rewiring the sensor demands a reboot', async () => {
+  // The pins are configurable because one firmware image serves several ESP32
+  // variants, and main.py builds the I2C bus once at start-up.
+  const patches = capturePatch()
+  render(<SettingsPanel />)
+
+  const scl = page.getByTestId('input-board-i2c_scl_pin')
+  await expect.element(scl).toBeInTheDocument()
+  await scl.fill('22')
+  await page.getByTestId('save-button').click()
+
+  await vi.waitFor(() => {
+    expect(patches).toHaveLength(1)
+  })
+  expect(patches[0]).toEqual({ board: { i2c_scl_pin: 22 } })
+  await expect
+    .element(page.getByText(/reboot is required/i))
+    .toBeInTheDocument()
 })
 
 test('a later successful save clears an earlier reset error', async () => {
