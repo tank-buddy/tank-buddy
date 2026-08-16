@@ -9,6 +9,12 @@
 // mpconfigboard.cmake and this makes the same statement to MicroPython.
 #define MICROPY_PY_BLUETOOTH                (0)
 
+// This device has no TLS -- see the note at the top of CLAUDE.md -- and mqtt_as
+// only imports ssl behind a branch we never take. Dropping the module lets the
+// linker discard what mbedTLS pulls in behind it, which is what decides whether
+// two OTA app partitions fit into 4 MB at all.
+#define MICROPY_PY_SSL                      (0)
+
 // Enable UART REPL for modules that have an external USB-UART and do not
 // use native USB.
 #define MICROPY_HW_ENABLE_UART_REPL         (1)
