@@ -104,8 +104,17 @@ jobs:
         run: pnpm run build
 
   firmware:
-    name: Build firmware
+    name: Build firmware (${{ matrix.board }})
     runs-on: ubuntu-latest
+    strategy:
+      # One board failing to fit or compile is worth knowing about for all of
+      # them, so the matrix runs to completion.
+      fail-fast: false
+      matrix:
+        # The chips MicroPython ships a generic board for that also have Wi-Fi.
+        # H2 and P4 have none, the C2 is too small for this application, and
+        # ESP8266 is a different port entirely.
+        board: [TANKBUDDY_ESP32, TANKBUDDY_S2, TANKBUDDY_S3, TANKBUDDY_C3, TANKBUDDY_C6]
     # Only `core` gates this: manifest.py freezes src/ alone, so the web UI is
     # not part of the firmware image and would only serialise the pipeline.
     needs: [core]
@@ -147,18 +156,22 @@ jobs:
         shell: bash
         run: |
           . "$IDF_PATH/export.sh"
-          # FROZEN_MANIFEST must be absolute. A relative path looks right next to
-          # `make -C`, but makemanifest.py is invoked by ninja from
+          # Both paths must be absolute. A relative FROZEN_MANIFEST looks right
+          # next to `make -C`, but makemanifest.py is invoked by ninja from
           # build-*/esp-idf/main, so `../../../manifest.py` resolved to
           # ports/esp32/manifest.py and the freeze step failed.
-          make -C micropython/ports/esp32 BOARD=ESP32_GENERIC_C6 \
+          make -C micropython/ports/esp32 \
+            BOARD_DIR="$GITHUB_WORKSPACE/boards/${{ matrix.board }}" \
             FROZEN_MANIFEST="$GITHUB_WORKSPACE/manifest.py"
 
+      # Named per board, and "firmware" rather than the project name: this image
+      # holds src/ frozen in, but not the web UI, which is a filesystem asset.
+      # It is a build check, not something to hand to a user.
       - name: Archive and upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: tank-buddy
-          path: micropython/ports/esp32/build-ESP32_GENERIC_C6/firmware.bin
+          name: firmware-${{ matrix.board }}
+          path: micropython/ports/esp32/build-${{ matrix.board }}/firmware.bin
           retention-days: 7
 
       # The cache key only carries the MicroPython version, so whatever is on
@@ -167,4 +180,4 @@ jobs:
       # from one commit under a key that never changes again.
       - name: Keep the build tree out of the cache
         if: always() && steps.micropython-cache.outputs.cache-hit != 'true'
-        run: rm -rf micropython/ports/esp32/build-ESP32_GENERIC_C6
+        run: rm -rf micropython/ports/esp32/build-${{ matrix.board }}
