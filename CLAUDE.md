@@ -141,7 +141,9 @@ i18n is static: `utils/i18n` imports both language files and picks one at module
 
 `make upload` wipes the device with `tools/wipe_device.py` — otherwise modules deleted from the source tree linger in flash and stay importable — then does one recursive `mpremote fs cp -r dist/. :`. **Adding a top-level package under `src/` needs no Makefile change.** The wipe preserves `/settings.json`; `make provision` pushes the local one on purpose.
 
-`manifest.py` is the alternative path: it freezes all of `src/` into a custom firmware image, which is what the CI `firmware` job produces (MicroPython v1.26.0) for the boards defined in [`boards/`](boards/README.md) — ESP32, C3 and C6.
+MicroPython, the ESP-IDF image and the stubs move as one: `MICROPYTHON_VERSION` in both workflows, the `espressif/idf` container tag (the version `ports/esp32/README.md` recommends for that release), and `STUBS_VERSION` in the `Makefile`. Bumping only one of them is how the stubs came to sit two releases behind the firmware, which hid a real signature drift (`gc.collect()` is `int | None`, not `None`).
+
+`manifest.py` is the alternative path: it freezes all of `src/` into a custom firmware image, which is what the CI `firmware` job produces (MicroPython v1.28.0 on ESP-IDF v5.5.1) for the five boards defined in [`boards/`](boards/README.md) — ESP32, S2, S3, C3 and C6.
 
 Three things about that image are easy to get wrong:
 
@@ -165,7 +167,6 @@ Three things about that image are easy to get wrong:
 
 ## Known gaps
 
-- The stubs are pinned to `1.24.*` while CI builds firmware from MicroPython **v1.26.0**. Deliberate, but a source of occasional signature drift.
 - `src/external/microdot/__init__.py` imports `TestClient`, so `test_client.mpy` (~3.7 KB) is not only flashed but **loaded into RAM at boot** — importing a submodule runs the package `__init__` first. Fixing it means vendoring `microdot.py` as a flat module (which is what upstream recommends anyway) and would also retire the import rewrite in `vendor.toml`. Measure `gc.mem_free()` before deciding; if it is under ~1 KB it is not worth restructuring vendored code.
 - `mqtt_v5_properties.mpy` (~1.8 KB) ships but is only imported lazily when MQTT v5 is enabled, which it is not. It costs flash, not RAM — deliberately left alone.
 - `noUncheckedIndexedAccess` is off in the web-UI tsconfig. Several places index records without guarding; enabling it would be a real tightening but touches a lot.

@@ -1,6 +1,6 @@
-// Copied from the upstream board of the same chip at MicroPython v1.26.0 and
-// kept in step with MICROPYTHON_VERSION in .github/workflows/ci.yml. Only the
-// board name and the Bluetooth switch differ.
+// Copied from the upstream board of the same chip at the MicroPython version
+// pinned in .github/workflows/ci.yml. Only the board name and the Bluetooth
+// switch differ; diff against upstream when bumping that version.
 
 #define MICROPY_HW_BOARD_NAME               "TankBuddy (ESP32-S2)"
 #define MICROPY_HW_MCU_NAME                 "ESP32S2"

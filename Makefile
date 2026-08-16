@@ -1,5 +1,5 @@
 STUBS_FOR=esp32
-STUBS_VERSION=1.24.*
+STUBS_VERSION=1.28.*
 STUBS_PATH=typings
 MPY_CROSS=uv run mpy-cross-v6
 MPREMOTE=uv run mpremote

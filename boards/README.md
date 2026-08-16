@@ -16,35 +16,22 @@ version, diff these against upstream.
 
 ## What CI builds
 
-| Board | Chip | Built in CI |
-|---|---|---|
-| `TANKBUDDY_ESP32` | ESP32 | yes |
-| `TANKBUDDY_C3` | ESP32-C3 | yes |
-| `TANKBUDDY_C6` | ESP32-C6 | yes |
-| `TANKBUDDY_S2` | ESP32-S2 | no — see below |
-| `TANKBUDDY_S3` | ESP32-S3 | no — see below |
+All five: ESP32, S2, S3, C3 and C6.
 
-## Why S2 and S3 are defined but not built
+S2 and S3 were out for a while. MicroPython v1.26.0 pinned
+`espressif/esp_tinyusb: "~1.0.0"`, which stopped compiling against the TinyUSB
+bundled with ESP-IDF v5.4.2 (`'CFG_TUD_CDC_EP_BUFSIZE' undeclared`) — a
+disagreement between two upstream pins that a board definition cannot settle.
+v1.28.0 replaced the dependency with MicroPython's own TinyUSB fork and the two
+chips build again.
 
-They are the only two boards that pull in `boards/sdkconfig.usb`, and that path
-is currently broken upstream:
+## Keeping these in step with upstream
 
-```
-esp_tinyusb/usb_descriptors.c:172: error: 'CFG_TUD_CDC_EP_BUFSIZE' undeclared
-```
-
-MicroPython v1.26.0 pins `espressif/esp_tinyusb: "~1.0.0"` in
-`ports/esp32/main/idf_component.yml`, and that component does not compile
-against the TinyUSB bundled with ESP-IDF v5.4.2 — the macro was renamed. It is
-a mismatch between two upstream pins, not something this repository can fix from
-the board definition.
-
-The definitions are kept because they are correct and cost nothing: add the two
-names back to the matrix in `ci.yml` once MicroPython moves the component pin or
-the IDF version changes. Until then, building for those chips means building
-locally and accepting the same error, or dropping `boards/sdkconfig.usb` from
-the board — which sidesteps TinyUSB entirely at the price of moving the REPL
-from native USB to UART.
+`mpconfigboard.cmake` mirrors the upstream `SDKCONFIG_DEFAULTS` list exactly,
+minus the Bluetooth fragment, and `mpconfigboard.h` is a copy. Both drift:
+v1.28.0 introduced `boards/sdkconfig.riscv` for the C3 and C6, dropped
+`boards/sdkconfig.usb`, and removed a define from the C6 header. Diff all ten
+files against upstream whenever `MICROPYTHON_VERSION` moves.
 
 ## Chips that are not here
 

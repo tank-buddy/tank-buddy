@@ -5,7 +5,7 @@ on:
     types: [created]
 
 env:
-  MICROPYTHON_VERSION: v1.26.0
+  MICROPYTHON_VERSION: v1.28.0
 
 # The firmware job runs inside the Espressif image, which carries no gh CLI, so
 # every job hands its output to `publish` as an artifact rather than uploading
@@ -85,10 +85,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Mirrors ci.yml; boards/README.md records why S2 and S3 are absent.
-        board: [TANKBUDDY_ESP32, TANKBUDDY_C3, TANKBUDDY_C6]
+        # Mirrors ci.yml. See boards/README.md for which chips are here and why.
+        board:
+          - TANKBUDDY_ESP32
+          - TANKBUDDY_S2
+          - TANKBUDDY_S3
+          - TANKBUDDY_C3
+          - TANKBUDDY_C6
     container:
-      image: espressif/idf:v5.4.2
+      image: espressif/idf:v5.5.1
       options: --user 0
 
     steps:

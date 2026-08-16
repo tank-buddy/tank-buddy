@@ -4,7 +4,7 @@ on:
   pull_request
 
 env:
-  MICROPYTHON_VERSION: v1.26.0
+  MICROPYTHON_VERSION: v1.28.0
 
 jobs:
   core:
@@ -111,21 +111,28 @@ jobs:
       # them, so the matrix runs to completion.
       fail-fast: false
       matrix:
-        # S2 and S3 are deliberately absent even though boards/ defines them:
-        # MicroPython v1.26.0 pins espressif/esp_tinyusb ~1.0.0, whose
-        # usb_descriptors.c does not compile against the TinyUSB in IDF v5.4.2
-        # ('CFG_TUD_CDC_EP_BUFSIZE' undeclared). Only those two pull in
-        # sdkconfig.usb, so only those two are affected. See boards/README.md.
-        board: [TANKBUDDY_ESP32, TANKBUDDY_C3, TANKBUDDY_C6]
+        # Every chip MicroPython ships a generic board for that also has Wi-Fi.
+        # H2 has none, the C2 is too small for this application, ESP8266 is a
+        # separate port, and the P4 needs a companion radio.
+        #
+        # S2 and S3 were out under v1.26.0, which pinned espressif/esp_tinyusb
+        # ~1.0.0 and would not compile against the TinyUSB in IDF v5.4.2.
+        # v1.28.0 replaced that dependency with MicroPython's own fork.
+        board:
+          - TANKBUDDY_ESP32
+          - TANKBUDDY_S2
+          - TANKBUDDY_S3
+          - TANKBUDDY_C3
+          - TANKBUDDY_C6
     # Only `core` gates this: manifest.py freezes src/ alone, so the web UI is
     # not part of the firmware image and would only serialise the pipeline.
     needs: [core]
     container:
-      # Pinned to the exact ESP-IDF MicroPython v1.26.0 is built against
-      # (its tools/ci.sh sets IDF_VER=v5.4.2). This tag and MICROPYTHON_VERSION
-      # are two halves of one decision: bump them together or the toolchain and
-      # the port drift apart.
-      image: espressif/idf:v5.4.2
+      # The version ports/esp32/README.md names as recommended for this
+      # MicroPython release. This tag and MICROPYTHON_VERSION are two halves of
+      # one decision: bump them together or the toolchain and the port drift
+      # apart.
+      image: espressif/idf:v5.5.1
       options: --user 0
 
     steps:

@@ -32,7 +32,10 @@ class Hardware:
         flash_size_fn: "Callable[[], int]" = flash_size,
         mem_free_fn: "Callable[[], int]" = mem_free,
         mem_alloc_fn: "Callable[[], int]" = mem_alloc,
-        collect_fn: "Callable[[], None]" = collect,
+        # `object`, not `None`: gc.collect() is typed as returning `int | None`
+        # (CPython hands back a count, MicroPython does not), and this code never
+        # looks at the result either way.
+        collect_fn: "Callable[[], object]" = collect,
         # `sys.implementation` is a platform object with no usable stub type.
         implementation_obj: "Any" = implementation,  # noqa: ANN401
         hard_reset_fn: "Callable[[], None]" = reset,
