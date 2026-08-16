@@ -19,10 +19,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -50,10 +50,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           # `defaults.run.working-directory` above applies to `run:` steps only,
           # never to `uses:` steps, so the action looks for a package.json in the
@@ -62,7 +62,7 @@ jobs:
           package_json_file: web-ui/package.json
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           # Pinned rather than read from engines.node (">=22.12"), which would
           # float onto whatever Node is newest.
@@ -80,7 +80,7 @@ jobs:
         run: echo "version=$(pnpm ls playwright --json | jq -r '.[0].devDependencies.playwright.version')" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -143,12 +143,12 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Cloning MicroPython with recursive submodules and compiling mpy-cross
       # from source dominated the pipeline; both depend only on the version.
       - name: Cache MicroPython checkout and mpy-cross
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: micropython-cache
         with:
           path: micropython
@@ -183,7 +183,7 @@ jobs:
       # holds src/ frozen in, but not the web UI, which is a filesystem asset.
       # It is a build check, not something to hand to a user.
       - name: Archive and upload firmware
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: firmware-${{ matrix.board }}
           path: micropython/ports/esp32/build-${{ matrix.board }}/firmware.bin

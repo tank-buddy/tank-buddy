@@ -23,10 +23,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -37,14 +37,14 @@ jobs:
         run: make stubs
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           # The pnpm version lives in web-ui/package.json; without this the
           # action looks for a package.json in the repo root and fails.
           package_json_file: web-ui/package.json
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -79,7 +79,7 @@ jobs:
         run: tar -czf release-assets/tank-buddy-filesystem.tar.gz -C dist .
 
       - name: Hand the assets to the publish job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-web-ui
           path: release-assets
@@ -88,7 +88,7 @@ jobs:
       # The built interface itself, which the publish job turns into the
       # filesystem half of the one-file flash images.
       - name: Hand the built interface to the publish job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-ui-dist
           path: web-ui/dist
@@ -113,10 +113,10 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Cache MicroPython checkout and mpy-cross
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: micropython-cache
         with:
           path: micropython
@@ -147,7 +147,7 @@ jobs:
              "release-assets/tank-buddy-${{ matrix.board }}.bin"
 
       - name: Hand the image to the publish job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-firmware-${{ matrix.board }}
           path: release-assets
@@ -167,10 +167,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -178,14 +178,14 @@ jobs:
         run: uv sync --locked
 
       - name: Collect every job's output
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: release-*
           merge-multiple: true
           path: release-assets
 
       - name: Collect the built interface
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: web-ui-dist
           path: web-ui-dist
