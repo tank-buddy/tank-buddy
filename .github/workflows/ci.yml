@@ -111,10 +111,12 @@ jobs:
       # them, so the matrix runs to completion.
       fail-fast: false
       matrix:
-        # The chips MicroPython ships a generic board for that also have Wi-Fi.
-        # H2 and P4 have none, the C2 is too small for this application, and
-        # ESP8266 is a different port entirely.
-        board: [TANKBUDDY_ESP32, TANKBUDDY_S2, TANKBUDDY_S3, TANKBUDDY_C3, TANKBUDDY_C6]
+        # S2 and S3 are deliberately absent even though boards/ defines them:
+        # MicroPython v1.26.0 pins espressif/esp_tinyusb ~1.0.0, whose
+        # usb_descriptors.c does not compile against the TinyUSB in IDF v5.4.2
+        # ('CFG_TUD_CDC_EP_BUFSIZE' undeclared). Only those two pull in
+        # sdkconfig.usb, so only those two are affected. See boards/README.md.
+        board: [TANKBUDDY_ESP32, TANKBUDDY_C3, TANKBUDDY_C6]
     # Only `core` gates this: manifest.py freezes src/ alone, so the web UI is
     # not part of the firmware image and would only serialise the pipeline.
     needs: [core]
