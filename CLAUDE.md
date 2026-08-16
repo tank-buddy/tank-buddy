@@ -136,7 +136,15 @@ i18n is static: `utils/i18n` imports both language files and picks one at module
 
 `make upload` wipes the device with `tools/wipe_device.py` — otherwise modules deleted from the source tree linger in flash and stay importable — then does one recursive `mpremote fs cp -r dist/. :`. **Adding a top-level package under `src/` needs no Makefile change.** The wipe preserves `/settings.json`; `make provision` pushes the local one on purpose.
 
-`manifest.py` is the alternative path: it freezes all of `src/` into a custom firmware image, which is what the CI `firmware` job produces (MicroPython v1.26.0, board `ESP32_GENERIC_C6`).
+`manifest.py` is the alternative path: it freezes all of `src/` into a custom firmware image, which is what the CI `firmware` job produces (MicroPython v1.26.0) for the boards defined in [`boards/`](boards/README.md) — ESP32, C3 and C6.
+
+Three things about that image are easy to get wrong:
+
+- **It does not contain the web UI.** `manifest.py` freezes `src/` only; the UI is a filesystem asset under `/www`. The CI artefacts are named `firmware-<board>` rather than the project name for exactly this reason — they are a build check, not something to hand to a user.
+- **The port's own manifest is deliberately not included.** It pulls in `bundle-networking`, `umqtt`, `neopixel`, `onewire`, `dht`, `ds18x20`, `upysh` and `aioespnow`, none of which this project imports, and with `src/` alongside them the app overflowed its 2 MB partition. What is kept is not optional: `$(PORT_DIR)/modules` (which mounts the filesystem) and `extmod/asyncio`.
+- **`FROZEN_MANIFEST` must be absolute.** A relative path looks right next to `make -C`, but `makemanifest.py` runs from `build-*/esp-idf/main`, so `../../../manifest.py` resolves to `ports/esp32/manifest.py`.
+
+> **Firmware cannot be updated over the air on 4 MB.** OTA needs two app partitions, and `partitions-4MiB-ota.csv` gives each 1.5 MB against an image of ~1.9 MB. That is why the web UI stays a filesystem asset rather than being frozen in: the filesystem is the only part of the device that can be refreshed without a cable.
 
 ## Conventions
 

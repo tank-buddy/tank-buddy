@@ -6,6 +6,7 @@ import pytest
 import settings
 from api import Api
 from external.microdot import Microdot, TestClient
+from file_system import FileSystem
 from settings import Tank
 
 try:
@@ -28,17 +29,6 @@ class DummyHardware:
 class DummyWaterTank:
     def get_statistics(self) -> "dict[str, Any]":
         return {"level": 62, "distance_to_water": 105, "height": 280, "min_distance": 30}
-
-
-class RealFileSystem:
-    """Backed by the real filesystem so static serving is exercised end to end."""
-
-    def file_exists(self, path: str) -> bool:
-        return pathlib.Path(path).exists()
-
-    def get_extension(self, path: str) -> str:
-        dot = path.rfind(".")
-        return path[dot:] if dot != -1 else ""
 
 
 @pytest.fixture(autouse=True)
@@ -82,7 +72,10 @@ def client(hardware: DummyHardware, static_root: str, overlay: str) -> TestClien
     app = Microdot()
     Api(
         http_app=app,
-        file_system=RealFileSystem(),  # type: ignore[arg-type]
+        # The real one, against a temporary directory: static serving and the
+        # update endpoint are both filesystem behaviour, so a stub would only
+        # test the stub.
+        file_system=FileSystem(),
         hardware=hardware,  # type: ignore[arg-type]
         water_tank=DummyWaterTank(),  # type: ignore[arg-type]
         static_root=static_root,
@@ -209,3 +202,66 @@ async def test_unknown_api_path_is_404_not_the_spa_fallback(client: TestClient) 
     response = await client.get("/api/hidden")
 
     assert response.status_code == 404
+
+
+async def test_rejects_an_asset_path_aimed_outside_the_web_ui(client: TestClient) -> None:
+    # The endpoint is unauthenticated like the rest of the API, so the path is
+    # the only thing standing between an upload and /settings.json.
+    await client.post("/api/web-ui")
+
+    for path in ("../settings.json", "assets/../../settings.json", ".hidden.gz", "a/b/c.gz"):
+        response = await client.put(f"/api/web-ui/{path}", body=b"x")
+
+        assert response.status_code == 400, path
+
+
+async def test_rejects_an_asset_with_an_unexpected_extension(client: TestClient) -> None:
+    await client.post("/api/web-ui")
+
+    response = await client.put("/api/web-ui/payload.py", body=b"print(1)")
+
+    assert response.status_code == 400
+
+
+async def test_upload_without_beginning_is_refused(client: TestClient) -> None:
+    response = await client.put("/api/web-ui/index.html.gz", body=b"x")
+
+    assert response.status_code == 409
+
+
+async def test_web_ui_update_replaces_the_served_files(
+    client: TestClient, static_root: str
+) -> None:
+    await client.post("/api/web-ui")
+    await client.put("/api/web-ui/index.html.gz", body=gzip.compress(b"<!doctype html>new"))
+    await client.put("/api/web-ui/assets/app-abc123.js.gz", body=gzip.compress(b"const a=1"))
+    response = await client.post("/api/web-ui/commit")
+
+    assert response.status_code == 200
+
+    served = await client.get("/assets/app-abc123.js")
+
+    assert served.status_code == 200
+    assert served.headers["Content-Type"] == "application/javascript"
+    # The previous build's assets must not linger and eat flash.
+    assert not (pathlib.Path(static_root) / "style.css.gz").exists()
+    assert not pathlib.Path(f"{static_root}-new").exists()
+
+
+async def test_an_abandoned_update_leaves_the_old_ui_serving(
+    client: TestClient, static_root: str
+) -> None:
+    await client.post("/api/web-ui")
+    await client.put("/api/web-ui/index.html.gz", body=gzip.compress(b"half written"))
+
+    # No commit -- the staging tree is never swapped in.
+    response = await client.get("/style.css")
+
+    assert response.status_code == 200
+    assert (pathlib.Path(static_root) / "style.css.gz").exists()
+
+
+async def test_commit_without_an_upload_is_refused(client: TestClient) -> None:
+    response = await client.post("/api/web-ui/commit")
+
+    assert response.status_code == 409

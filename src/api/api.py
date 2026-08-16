@@ -3,6 +3,9 @@
 # else references. Both are properties of that dependency, not of this module.
 # pyright: reportUnknownMemberType=false, reportUnusedFunction=false
 # pyright: reportUnknownVariableType=false
+# request.body comes back Unknown for the same reason, and passing it on is the
+# whole point of the upload route.
+# pyright: reportUnknownArgumentType=false
 import settings
 from external.microdot import Microdot, Request, Response, send_file
 from file_system import FileSystem
@@ -26,6 +29,57 @@ INDEX_FILE = "index.html"
 DEFAULT_MIME_TYPE = "application/octet-stream"
 
 RESET_OPERATIONS = {"soft-reset": "soft", "hard-reset": "hard"}
+
+# Where an upload is assembled before it replaces the live UI, and the shape a
+# file has to have to be written there at all.
+STAGING_SUFFIX = "-new"
+ASSET_SUBDIRECTORY = "assets"
+ALLOWED_ASSET_EXTENSIONS = (".gz", ".png")
+# Four times the largest asset the build currently emits (~12 KB). Generous
+# enough to survive the UI growing, small enough that a request cannot ask the
+# device to allocate a buffer it does not have.
+MAX_ASSET_BYTES = 49152
+# A name, optionally preceded by the one subdirectory the build emits.
+MAX_ASSET_PATH_PARTS = 2
+_ALLOWED_NAME_CHARACTERS = (
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
+)
+
+
+def is_safe_asset_path(path: str) -> bool:
+    """Whether `path` may be written under the web-UI root.
+
+    The build emits content-hashed filenames, so an allowlist of exact names is
+    impossible; the *shape* is constrained instead. One optional `assets/`
+    level, a conservative character set and an extension the build actually
+    produces. That rejects `..`, absolute paths and anything aimed at
+    /settings.json before a file handle is ever opened -- this endpoint is
+    unauthenticated, like the rest of the API, so the path is the only guard.
+    """
+    if not path or path.endswith("/"):
+        return False
+
+    parts = path.split("/")
+
+    if len(parts) > MAX_ASSET_PATH_PARTS:
+        return False
+
+    if len(parts) == MAX_ASSET_PATH_PARTS and parts[0] != ASSET_SUBDIRECTORY:
+        return False
+
+    name = parts[-1]
+
+    # A leading dot covers both hidden files and `..` in one condition.
+    if not name or name.startswith("."):
+        return False
+
+    for character in name:
+        if character not in _ALLOWED_NAME_CHARACTERS:
+            return False
+
+    dot = name.rfind(".")
+
+    return dot != -1 and name[dot:] in ALLOWED_ASSET_EXTENSIONS
 
 
 class Api:
@@ -63,7 +117,15 @@ class Api:
         self.static_root = static_root
         self.settings = settings_module
         self.overlay_path = overlay_path
+        self.staging_root = f"{static_root}{STAGING_SUFFIX}"
+        # Microdot defaults both to 16 KB, which the largest asset (~12 KB) only
+        # just clears. Raised here rather than in start() because start() is not
+        # called by the test client, and a limit that differs between the tests
+        # and the device is worse than no limit at all.
+        Request.max_content_length = MAX_ASSET_BYTES
+        Request.max_body_length = MAX_ASSET_BYTES
         self._register_api_routes()
+        self._register_web_ui_update_routes()
         self._register_static_routes()
 
     def _register_api_routes(self) -> None:
@@ -100,6 +162,62 @@ class Api:
                 "success": True,
                 "message": f"System will perform a {operation.replace('-', ' ')} in {delay}s.",
             }
+
+    def _register_web_ui_update_routes(self) -> None:
+        """Replace the web UI without a cable.
+
+        The device has no TLS and cannot reach GitHub, but the browser already
+        can: it fetches the new build over HTTPS and hands it here over plain
+        HTTP on the LAN. Firmware cannot be refreshed this way -- OTA needs two
+        app partitions and the image does not fit twice into 4 MB -- so the
+        filesystem is the only part of the device that updates without a cable.
+
+        Three steps rather than one upload, because the device has no archive
+        format available and assembling into a staging directory means a failed
+        or abandoned update leaves the previous UI serving.
+        """
+
+        @self.http_app.route("/api/web-ui", methods=["POST"])
+        def begin_web_ui_update(request: Request) -> "Any":
+            self.file_system.remove_tree(self.staging_root)
+            self.file_system.make_directory(self.staging_root)
+
+            return {"success": True}
+
+        @self.http_app.route("/api/web-ui/commit", methods=["POST"])
+        def commit_web_ui_update(request: Request) -> "Any":
+            if not self.file_system.is_directory(self.staging_root):
+                return {"success": False, "message": "No update was started."}, 409
+
+            self.file_system.replace_tree(self.staging_root, self.static_root)
+
+            return {"success": True}
+
+        @self.http_app.route("/api/web-ui/<path:path>", methods=["PUT"])
+        def upload_web_ui_asset(request: Request, path: str = "") -> "Any":
+            return self._stage_asset(path, request.body)
+
+    def _stage_asset(self, path: str, body: "bytes | None") -> "Any":
+        """Validate one uploaded asset and write it into the staging tree.
+
+        Split out of the route so the registration method stays under the
+        complexity limit, and so the rules are readable in one place.
+        """
+        if not is_safe_asset_path(path):
+            return {"success": False, "message": f"Rejected path: {path}"}, 400
+
+        if not self.file_system.is_directory(self.staging_root):
+            return {"success": False, "message": "No update was started."}, 409
+
+        if not body:
+            return {"success": False, "message": "Empty body."}, 400
+
+        if ASSET_SUBDIRECTORY in path:
+            self.file_system.make_directory(f"{self.staging_root}/{ASSET_SUBDIRECTORY}")
+
+        self.file_system.write_file(f"{self.staging_root}/{path}", body)
+
+        return {"success": True}, 200
 
     def _register_static_routes(self) -> None:
         @self.http_app.route("/")
