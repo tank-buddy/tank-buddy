@@ -169,7 +169,7 @@ docs/             The browser installer, published with GitHub Pages
 
 ## 3D printed case
 
-Printable models for the ESP32 and TOF sensor enclosure are on Thingiverse — ideal for durable, weatherproof installations.
+Enclosures for the board and the sensor are drawn and will be published on Thingiverse — the sensor has to sit in the tank lid looking straight down at the water, and it needs to stay dry doing it. Not uploaded yet; this section gets the link when they are.
 
 ## License
 
