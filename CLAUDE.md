@@ -52,7 +52,10 @@ CI needs `pnpm exec playwright install --with-deps chromium`; the download is ca
 ### Boot sequence on device
 
 1. **`src/boot.py`** — runs first. Loads the settings overlay, sets hostname `tank-buddy` (mDNS → `tank-buddy.local`), then brings up Wi-Fi per `Wifi.mode`: `"C"` = station, `"AP"` = access point at `192.168.1.1`. **Any** failure falls back to a default open AP named `TankBuddy`. On a successful station connection it sets `settings.Runtime.wifi_connected`, which is how `main.py` learns whether MQTT is worth starting. Never let an exception escape this file — an unreachable device cannot be reconfigured.
-2. **`src/main.py`** — wires everything by hand (no DI container), then runs `asyncio.run(main())`: a measurement task, optionally an MQTT task, and `await api.start()` as the long-running server. Both background tasks are wrapped in `supervise()`, which logs and restarts them; a crashed MQTT task must not take the web server down.
+2. **`src/main.py`** — wires everything by hand (no DI container), then runs `asyncio.run(main())`: a measurement task, a Wi-Fi task in client mode, and `await api.start()` as the long-running server. Background tasks are wrapped in `supervise()`, which logs and restarts them; a crashed MQTT task must not take the web server down.
+   - **`wifi_loop` keeps trying after boot.py has given up**, and owns the MQTT task. boot.py allows ten seconds and then falls back to the recovery AP — correct, because a device that blocks its own boot on a router is a device nobody can reconfigure — but that used to be final. Where the router and the device share a power switch, the router is still booting when those seconds pass, and the device stayed in its access point until someone power-cycled it. The loop takes the open recovery AP down on the first successful connection, since an open network that lingers for the life of the device is a worse trade than one that exists while it is needed.
+   - `wifi_step()` is the decision, separated from the loop deliberately: no sleeping and no task creation, so the behaviour can be tested without a timer or a broker. **`Runtime.wifi_connected` is therefore no longer a boot-time fact** — it goes false again when the connection drops, which is what stops `mqtt_is_usable()` from keeping a dead client alive.
+   - `main.py` has an `if __name__ == "__main__":` guard. MicroPython runs it as the boot script, where `__name__` is `"__main__"`, so nothing changes on device — it exists so the tests can import the module.
 
 ### Backend modules (`src/`)
 
@@ -82,6 +85,8 @@ Each subdirectory is a package whose `__init__.py` re-exports its class (`from h
 | GET | `/api/settings` | current values of every `MUTABLE_FIELDS` entry |
 | PATCH | `/api/settings` | validate + persist; returns `{success, reboot_required}` or 400 |
 | PUT | `/api/system-operations/{soft-reset\|hard-reset}` | reset after a delay |
+
+**Only the hard reset is offered in the UI.** A soft reset restarts the interpreter but leaves the radio and peripherals as they were, so picking it to apply a Wi-Fi change half works — and nothing in a label lets a user tell the two apart. The API keeps both; this is about what to put in front of someone. The restart is also offered inside the "reboot required" notice, which is the moment it is wanted, rather than only in the danger zone at the bottom.
 | POST | `/api/web-ui` | start a UI update: create the staging tree |
 | PUT | `/api/web-ui/{path}` | write one asset into the staging tree |
 | POST | `/api/web-ui/commit` | swap staging in, drop the previous tree |

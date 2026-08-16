@@ -33,6 +33,10 @@ _WIFI_MODE_ACCESS_POINT = const("AP")
 _WIFI_DEFAULT_MODE = _WIFI_MODE_ACCESS_POINT
 _WIFI_DEFAULT_SSID = const("TankBuddy")
 _WIFI_CONNECT_TIMEOUT_S = const(10)
+# How often the reconnect loop retries after boot.py gave up. Deliberately short
+# enough that a router which appears a minute late is joined a minute late, not
+# at the next power cycle.
+_WIFI_RECONNECT_INTERVAL_S = const(15)
 _WIFI_HOSTNAME = const("tank-buddy")
 _WIFI_AP_IP = const("192.168.1.1")
 _WIFI_AP_NETMASK = const("255.255.255.0")
@@ -81,6 +85,7 @@ class Wifi:
     key: "str | None" = None
     hostname: str = _WIFI_HOSTNAME
     connect_timeout_s: int = _WIFI_CONNECT_TIMEOUT_S
+    reconnect_interval_s: int = _WIFI_RECONNECT_INTERVAL_S
     ap_ip: str = _WIFI_AP_IP
     ap_netmask: str = _WIFI_AP_NETMASK
 

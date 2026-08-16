@@ -55,7 +55,14 @@ const FIELDS: Field[] = [
   { path: 'board.i2c_sda_pin', label: 'label.i2c-sda-pin', kind: 'number' },
 ]
 
-const RESETS: SystemOperationIdentifier[] = ['soft-reset', 'hard-reset']
+/**
+ * Only the hard reset is offered. A soft reset restarts the interpreter but
+ * leaves the radio and the peripherals as they were, so choosing it to apply a
+ * Wi-Fi change half works -- and nothing in the label lets a user tell the two
+ * apart. The API still accepts both; this is about what to put in front of
+ * someone.
+ */
+const RESET: SystemOperationIdentifier = 'hard-reset'
 
 const NUMBER_FIELDS = new Set(
   FIELDS.filter((field) => field.kind === 'number').map((field) => field.path)
@@ -127,8 +134,7 @@ const SettingsPanel = () => {
   const [busyReset, setBusyReset] = useState<SystemOperationIdentifier | null>(
     null
   )
-  const [pendingReset, setPendingReset] =
-    useState<SystemOperationIdentifier | null>(null)
+  const [confirmingReset, setConfirmingReset] = useState(false)
 
   useEffect(() => {
     getSettings()
@@ -278,7 +284,23 @@ const SettingsPanel = () => {
         <Alert type="success">{t('alert.settings-save-successfully')}</Alert>
       )}
       {status === 'saved-reboot' && (
-        <Alert type="warning">{t('alert.reboot-required')}</Alert>
+        <Alert type="warning">
+          {t('alert.reboot-required')}
+          {/* Offered here rather than only in the danger zone: this is the
+              moment a restart is wanted, and scrolling down to a destructive
+              section to find it invites picking the wrong thing. */}
+          <button
+            type="button"
+            data-testid="restart-now"
+            class="mt-2 block font-semibold text-brand-ink underline-offset-2 active:opacity-60"
+            disabled={busyReset !== null}
+            onClick={() => {
+              setConfirmingReset(true)
+            }}
+          >
+            {t('action.restart-now')}
+          </button>
+        </Alert>
       )}
 
       {SECTIONS.map((section) => (
@@ -294,21 +316,18 @@ const SettingsPanel = () => {
       ))}
 
       <Card title={t('title.danger-zone')} testId="danger-zone">
-        {RESETS.map((identifier) => (
-          <Row
-            key={identifier}
-            label={t(`action.${identifier}`)}
-            hint={t(`text.${identifier}`)}
-            tone="destructive"
-            testId={`reset-${identifier}`}
-            disabled={busyReset !== null}
-            onClick={() => {
-              setPendingReset(identifier)
-            }}
-          >
-            {busyReset === identifier ? <Spinner /> : undefined}
-          </Row>
-        ))}
+        <Row
+          label={t('action.restart')}
+          hint={t('text.restart')}
+          tone="destructive"
+          testId="reset-hard-reset"
+          disabled={busyReset !== null}
+          onClick={() => {
+            setConfirmingReset(true)
+          }}
+        >
+          {busyReset !== null ? <Spinner /> : undefined}
+        </Row>
       </Card>
 
       {/* Sticks to the bottom edge while the form is longer than the screen, so
@@ -319,19 +338,18 @@ const SettingsPanel = () => {
         </Button>
       </div>
 
-      {pendingReset !== null && (
+      {confirmingReset && (
         <ConfirmSheet
           title={t('title.confirm-reset')}
           description={t('text.reset-warning')}
-          confirmLabel={t(`action.${pendingReset}`)}
+          confirmLabel={t('action.restart')}
           cancelLabel={t('action.cancel')}
           onCancel={() => {
-            setPendingReset(null)
+            setConfirmingReset(false)
           }}
           onConfirm={() => {
-            const identifier = pendingReset
-            setPendingReset(null)
-            void reset(identifier)
+            setConfirmingReset(false)
+            void reset(RESET)
           }}
         />
       )}

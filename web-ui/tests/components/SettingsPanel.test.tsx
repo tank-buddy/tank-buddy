@@ -120,7 +120,7 @@ test('a failed reset is reported', async () => {
   )
   render(<SettingsPanel />)
 
-  const row = page.getByTestId('reset-soft-reset')
+  const row = page.getByTestId('reset-hard-reset')
   await expect.element(row).toBeInTheDocument()
   await row.click()
   await page.getByTestId('confirm-accept').click()
@@ -128,9 +128,9 @@ test('a failed reset is reported', async () => {
   await expect.element(page.getByRole('alert')).toBeInTheDocument()
 })
 
-test('a reset can be called off', async () => {
+test('a restart can be called off', async () => {
   // A mis-tap next to the fill level must not reboot the device, which is the
-  // whole reason the destructive rows go through a confirmation sheet.
+  // whole reason the destructive row goes through a confirmation sheet.
   const resets: string[] = []
   worker.use(
     http.put('/api/system-operations/:identifier', ({ params }) => {
@@ -150,6 +150,59 @@ test('a reset can be called off', async () => {
     .element(page.getByTestId('confirm-sheet'))
     .not.toBeInTheDocument()
   expect(resets).toEqual([])
+})
+
+test('only the hard reset is offered', async () => {
+  // A soft reset leaves the radio as it was, so offering it next to a full
+  // restart only invites picking the one that half applies a Wi-Fi change.
+  const resets: string[] = []
+  worker.use(
+    http.put('/api/system-operations/:identifier', ({ params }) => {
+      resets.push(String(params.identifier))
+
+      return HttpResponse.json({ success: true })
+    })
+  )
+  render(<SettingsPanel />)
+
+  const row = page.getByTestId('reset-hard-reset')
+  await expect.element(row).toBeInTheDocument()
+  await row.click()
+  await page.getByTestId('confirm-accept').click()
+
+  await vi.waitFor(() => {
+    expect(resets).toEqual(['hard-reset'])
+  })
+})
+
+test('the reboot notice offers the restart where it is needed', async () => {
+  // Reboot-required settings are useless until the device restarts, and making
+  // someone scroll into a destructive section to find out how invites the
+  // wrong choice.
+  const resets: string[] = []
+  capturePatch()
+  worker.use(
+    http.put('/api/system-operations/:identifier', ({ params }) => {
+      resets.push(String(params.identifier))
+
+      return HttpResponse.json({ success: true })
+    })
+  )
+  render(<SettingsPanel />)
+
+  const ssid = page.getByLabelText(/SSID/i)
+  await expect.element(ssid).toBeInTheDocument()
+  await ssid.fill('Caravan')
+  await page.getByTestId('save-button').click()
+
+  const restart = page.getByTestId('restart-now')
+  await expect.element(restart).toBeInTheDocument()
+  await restart.click()
+  await page.getByTestId('confirm-accept').click()
+
+  await vi.waitFor(() => {
+    expect(resets).toEqual(['hard-reset'])
+  })
 })
 
 test('saving is unavailable until something actually changed', async () => {
@@ -225,7 +278,7 @@ test('a later successful save clears an earlier reset error', async () => {
   )
   render(<SettingsPanel />)
 
-  const row = page.getByTestId('reset-soft-reset')
+  const row = page.getByTestId('reset-hard-reset')
   await expect.element(row).toBeInTheDocument()
   await row.click()
   await page.getByTestId('confirm-accept').click()
