@@ -10,6 +10,14 @@ typings
 
 dist
 
+# The root project is release tooling only (see package.json); web-ui/ has its
+# own ignore file for its own node_modules.
+node_modules
+
+# Written by semantic-release's verifyReleaseCmd so the workflow can turn the
+# next version into job outputs. A build artefact of one run, never an input.
+.release-version
+
 settings.json
 __pycache__
 *.pyc
