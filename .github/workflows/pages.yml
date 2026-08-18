@@ -11,12 +11,11 @@ name: Pages
 # This also means Pages has to be served by Actions rather than from the docs/
 # folder on a branch -- the images are 4 MB each and have no business in git.
 on:
-  # After the release workflow, not on the release event itself: that workflow
-  # triggers on `created`, so a second trigger on the same event would race it
-  # and publish a manifest pointing at images not yet uploaded.
-  workflow_run:
-    workflows: [Release]
-    types: [completed]
+  # Called by the release workflow as its last step, rather than triggered by
+  # it: Release now runs on every push to main and only sometimes publishes, so
+  # a workflow_run trigger could not tell a release from an ordinary commit.
+  # Being called also removes the race that watching an event would have.
+  workflow_call:
   push:
     branches: [main]
     paths:
@@ -39,10 +38,6 @@ concurrency:
 jobs:
   deploy:
     name: Publish the browser installer
-    # A failed release has nothing worth deploying.
-    if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -1,12 +1,33 @@
 name: Release
 
+# semantic-release decides whether a push warrants a release and what to call
+# it, so this runs on every push to main and usually does nothing. `build(deps)`
+# from Dependabot is not a releasable type, so a week of dependency updates does
+# not produce a release.
+#
+# The version is worked out *before* the builds because UI_VERSION is compiled
+# into the web UI, and the device compares that value against the version in the
+# published bundle -- get them out of step and every device offers an update
+# forever. That is why there is a separate `version` job rather than a single
+# semantic-release run at the end.
+#
+# It also cannot be split across workflows: a release created with the automatic
+# GITHUB_TOKEN starts no workflow run (GitHub's recursion guard), so triggering
+# the builds from the release event would leave every release without assets.
+# The jobs are chained with `needs` instead, which needs no extra token.
 on:
-  release:
-    types: [created]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Work out the version and build everything, publish nothing
+        type: boolean
+        default: true
 
 # Read for the building jobs; the publish job widens this for itself. The
-# repository default is read-only, so without this `gh release upload` fails at
-# the very last step of a release.
+# repository default is read-only, so without this semantic-release cannot
+# create the release at the very last step.
 permissions:
   contents: read
 
@@ -17,8 +38,59 @@ env:
 # every job hands its output to `publish` as an artifact rather than uploading
 # to the release itself.
 jobs:
+  version:
+    name: Work out whether this warrants a release
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.next.outputs.published }}
+      # The git tag (`v1.2.3`), not the bare version: it is what the release is
+      # named, what the update bundle records and what the running UI compares
+      # itself against.
+      tag: ${{ steps.next.outputs.tag }}
+      version: ${{ steps.next.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          # semantic-release reads every commit since the last tag; a shallow
+          # clone makes it see one and release the wrong version.
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install release tooling
+        run: pnpm install --frozen-lockfile
+
+      # --dry-run stops before `prepare`, so nothing is written, tagged or
+      # pushed here. verifyReleaseCmd still runs, which is what produces the
+      # file below; it is absent when no release is due.
+      - name: Ask semantic-release for the next version
+        id: next
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          pnpm exec semantic-release --dry-run
+          if [ -f .release-version ]; then
+            cat .release-version >> "$GITHUB_OUTPUT"
+            cat .release-version
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "no releasable commits since the last tag"
+          fi
+
   web-ui:
     name: Build the web UI and its update bundle
+    needs: version
+    if: needs.version.outputs.published == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -62,16 +134,20 @@ jobs:
         run: make check-all
 
       # UI_VERSION is what the update panel displays and compares against the
-      # latest release, so it has to be the tag rather than a build number.
+      # published bundle, so it has to be the tag rather than a build number --
+      # and the same value in both places, or the comparison never matches.
+      # There is no tag yet at this point, which is why it comes from the
+      # version job rather than from github.ref_name.
       - name: Build
         run: make build
         env:
-          UI_VERSION: ${{ github.ref_name }}
+          UI_VERSION: ${{ needs.version.outputs.tag }}
 
       - name: Pack the update bundle
         run: |
           uv run python tools/build_web_ui_bundle.py \
-            web-ui/dist "$GITHUB_REF_NAME" release-assets/web-ui.json
+            web-ui/dist "${{ needs.version.outputs.tag }}" \
+            release-assets/web-ui.json
 
       # Everything the device serves from its filesystem -- the same tree a
       # manual `mpremote fs cp -r dist/. :` would push.
@@ -96,6 +172,10 @@ jobs:
 
   firmware:
     name: Build firmware (${{ matrix.board }})
+    # Deliberately not given the version: manifest.py freezes src/, which
+    # carries no version number. Only the interface does.
+    needs: version
+    if: needs.version.outputs.published == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -158,16 +238,25 @@ jobs:
         run: rm -rf micropython/ports/esp32/build-${{ matrix.board }}
 
   publish:
-    name: Merge the flash images and attach everything
+    name: Merge the flash images and cut the release
     runs-on: ubuntu-latest
-    needs: [web-ui, firmware]
+    needs: [version, web-ui, firmware]
+    # A manual run defaults to publishing nothing, so the whole chain can be
+    # exercised on a branch without cutting a release.
+    if: >-
+      needs.version.outputs.published == 'true' &&
+      inputs.dry_run != true
     permissions:
-      # The one job that attaches assets to the release.
+      # The one job that tags, releases and pushes the release commit.
       contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          # Same reason as the version job: semantic-release needs the history,
+          # and it pushes the changelog commit from here.
+          fetch-depth: 0
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -218,9 +307,34 @@ jobs:
           done
           ls -la release-assets
 
-      - name: Upload
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install release tooling
+        run: pnpm install --frozen-lockfile
+
+      # Everything at once, and only now that the assets exist: tag, GitHub
+      # release with those assets attached, CHANGELOG.md, the version in
+      # pyproject.toml, and the release commit pushed back to main. That push
+      # uses GITHUB_TOKEN, so it starts no workflow run and cannot loop.
+      - name: Tag, release and attach the assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "$GITHUB_REF_NAME" release-assets/* \
-            --repo "$GITHUB_REPOSITORY" --clobber
+        run: pnpm exec semantic-release
+
+  # Republishes the installer and the update bundle for the release just cut.
+  # Called rather than triggered -- see the note at the top of pages.yml.
+  pages:
+    name: Deploy the browser installer
+    needs: publish
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml

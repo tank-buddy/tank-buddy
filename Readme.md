@@ -166,7 +166,11 @@ manifest.py       Freezes src/ into a custom firmware image
 boards/           Board definitions, one per supported chip
 docs/             The browser installer, deployed to GitHub Pages by Actions
                   together with the release's flash images (see CLAUDE.md)
+.releaserc.json   semantic-release: versions come from the commit messages
+package.json      Release tooling only — nothing here ships to the device
 ```
+
+Versions are not chosen by hand. A `fix:` on `main` becomes a patch release, a `feat:` a minor one, and `build(deps):` becomes nothing at all — see the release section in [CLAUDE.md](CLAUDE.md).
 
 ## 3D printed case
 

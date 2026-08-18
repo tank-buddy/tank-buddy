@@ -29,6 +29,18 @@ updates:
       # signature drift.
       - dependency-name: micropython-esp32-stubs
 
+  # The root project is release tooling only -- semantic-release and its plugins.
+  # It is pinned to exact versions in package.json because it is the thing that
+  # decides version numbers and pushes to main; a floating range there is a
+  # supply-chain question, not a convenience.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      release:
+        patterns: ['*']
+
   - package-ecosystem: npm
     directory: /web-ui
     schedule:

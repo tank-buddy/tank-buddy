@@ -31,6 +31,8 @@ Everything goes through the `Makefile`. **Nothing is containerised** — `uv` pi
 
 Web UI, from `web-ui/`: `pnpm dev` (MSW mocks the API in-browser — no second process), `pnpm build`, `pnpm lint`, `pnpm format`, `pnpm typecheck`, `pnpm test`, `ANALYZE=1 pnpm build`.
 
+Release, from the root: `pnpm exec semantic-release --dry-run --no-ci` (needs `GH_TOKEN`) prints the version the next release would get without touching anything. The root `package.json` is release tooling only — **nothing in it ships to the device.**
+
 Git hooks: `uv run pre-commit install` (ruff check, ruff format, pyright).
 
 ### Tests
@@ -166,6 +168,19 @@ Three things about that image are easy to get wrong:
 - **`FROZEN_MANIFEST` must be absolute.** A relative path looks right next to `make -C`, but `makemanifest.py` runs from `build-*/esp-idf/main`, so `../../../manifest.py` resolves to `ports/esp32/manifest.py`.
 
 > **Firmware is not updated over the air here.** OTA needs two app partitions; `partitions-4MiB-ota.csv` gives each 1.5 MB against an app of ~1.50 MB. It would fit with a few kilobytes to spare, and two slots would take 3 of the 4 MB — no headroom for the app and far less filesystem. So the web UI stays a filesystem asset rather than being frozen in: the filesystem is the only part of the device that is refreshed without a cable.
+
+### Releases
+
+**Releases are cut by semantic-release from the commit messages.** `release.yml` runs on every push to `main` and usually does nothing: `build(deps)` is not a releasable type, so a week of Dependabot updates produces no release, while a `fix:` gives a patch and a `feat:` a minor. `tagFormat` is `v${version}`, matching the tags that existed before. There is no manual step, and `workflow_dispatch` takes a `dry_run` input (**default true**) so the whole chain can be exercised without cutting anything.
+
+Four things about that pipeline are load-bearing:
+
+- **The version is worked out before the builds, in its own `version` job.** `UI_VERSION` is compiled into the web UI, and the device compares that value against the version inside the published bundle — if the two differ, every device offers an update forever. The job runs `semantic-release --dry-run`, which stops before `prepare`, and takes the value from `verifyReleaseCmd`. It passes the **tag** (`v1.2.3`) rather than the bare version, because that is what the bundle records. There is no tag yet at that point, which is why `github.ref_name` cannot be used.
+- **The jobs are chained with `needs`, not triggered by the release event.** A release created with the automatic `GITHUB_TOKEN` starts no workflow run — GitHub's recursion guard, which applies to pushed tags as well. Triggering the builds from `release: created` would leave every release without assets. The same guard is why the release commit semantic-release pushes back to `main` cannot loop.
+- **`@semantic-release/exec` renders commands as Lodash templates**, so `${...}` is interpolated before the shell sees it. `${GITHUB_OUTPUT:-/dev/null}` fails with `SyntaxError: Unexpected token ':'`. `verifyReleaseCmd` therefore writes `.release-version` (gitignored) and the workflow turns that into job outputs — which also makes it testable outside Actions.
+- **`pages.yml` is called, not triggered.** Since *Release* now runs on every push and only sometimes publishes, a `workflow_run` trigger could not tell a release from an ordinary commit. It keeps its own `push`/`workflow_dispatch` triggers for documentation-only changes and additionally exposes `workflow_call`, which `release.yml` uses as its last job.
+
+`tools/set_project_version.py` writes the version into `[project]` of `pyproject.toml`. That value is decorative — `[tool.uv] package = false`, nothing builds or publishes this project — but a file permanently claiming `0.1.0` while the tags have moved on misleads whoever reads it next. The script is line-based because `tomllib` cannot write and every writer that could would drop the comments, and most of that file is ruff and pyright configuration with the reasoning written beside each setting.
 
 ### Browser installer (`docs/`)
 
