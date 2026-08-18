@@ -1,4 +1,8 @@
 import { http, HttpResponse } from 'msw'
+// The one definition of the bundle URL, imported rather than restated: a mock
+// pointing somewhere the app does not is exactly how the CORS failure this
+// endpoint was moved for stayed invisible in a green suite.
+import { BUNDLE_URL } from '../src/utils/update'
 import { level, NO_READING, SETTINGS } from './fixtures'
 
 // Mirrors the reboot_required flags in MUTABLE_FIELDS (src/settings.py):
@@ -52,28 +56,12 @@ const validate = (patch: Patch): string | null => {
   return null
 }
 
-/**
- * The release the update panel would find. Mocked like the device API so both
- * `pnpm dev` and the test suite stay offline -- and so the flow can be walked
- * through without publishing a release first.
- */
-export const RELEASE_API =
-  'https://api.github.com/repos/tank-buddy/tank-buddy/releases/latest'
-const BUNDLE_URL = 'https://example.test/web-ui.json'
-
 export const RELEASE_VERSION = 'v9.9.9'
 
 /** Base64 of a one-byte payload; content does not matter to the transfer. */
 const ENCODED_ASSET = 'eA=='
 
 export const handlers = [
-  http.get(RELEASE_API, () =>
-    HttpResponse.json({
-      tag_name: RELEASE_VERSION,
-      assets: [{ name: 'web-ui.json', browser_download_url: BUNDLE_URL }],
-    })
-  ),
-
   http.get(BUNDLE_URL, () =>
     HttpResponse.json({
       version: RELEASE_VERSION,
