@@ -1,0 +1,92 @@
+name: Pages
+
+# The browser installer, and the flash images it hands to the board, are served
+# from this one site. That is not a preference: a browser cannot fetch a GitHub
+# release asset from another origin at all, because
+# `github.com/.../releases/download/` answers a cross-origin request with a 302
+# carrying no Access-Control-Allow-Origin and the
+# release-assets.githubusercontent.com it redirects to sends no CORS headers
+# either. So a release costs a Pages deploy, and the images are copied here.
+#
+# This also means Pages has to be served by Actions rather than from the docs/
+# folder on a branch -- the images are 4 MB each and have no business in git.
+on:
+  # After the release workflow, not on the release event itself: that workflow
+  # triggers on `created`, so a second trigger on the same event would race it
+  # and publish a manifest pointing at images not yet uploaded.
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - tools/build_pages_manifest.py
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and never cancelled part way: the installer would be
+# left offering images the site no longer carries.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publish the browser installer
+    # A failed release has nothing worth deploying.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Python dependencies
+        run: uv sync --locked
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site
+          cp -R docs/. _site/
+
+      # Only the whole-chip images: the firmware-only build carries no
+      # filesystem, and a first install from it would serve nothing.
+      - name: Collect the flash images of the latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" \
+            --pattern '*-full.bin' --dir _site/firmware
+          uv run python tools/build_pages_manifest.py \
+            _site/firmware "$tag" _site/manifest.json
+          cat _site/manifest.json
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@v5

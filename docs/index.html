@@ -251,18 +251,17 @@
       src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"
     ></script>
     <script>
-      // The manifest is built here rather than published as a file, so this page
-      // never has to be redeployed for a release. The asset URLs come straight
-      // from the release, and are absolute because a blob: manifest has no base
-      // to resolve relative paths against.
-      const REPOSITORY = 'tank-buddy/tank-buddy'
-      const CHIP_FAMILIES = {
-        TANKBUDDY_ESP32: 'ESP32',
-        TANKBUDDY_S2: 'ESP32-S2',
-        TANKBUDDY_S3: 'ESP32-S3',
-        TANKBUDDY_C3: 'ESP32-C3',
-        TANKBUDDY_C6: 'ESP32-C6',
-      }
+      // Both the manifest and the images it points at are deployed onto this
+      // site, and are fetched from it. That is not a preference: a browser
+      // cannot fetch a GitHub release asset from another origin at all.
+      // `github.com/.../releases/download/` answers a cross-origin request with
+      // a 302 carrying no Access-Control-Allow-Origin, and the
+      // release-assets.githubusercontent.com it redirects to sends no CORS
+      // headers either -- so the old manifest, built here from the release API
+      // and pointing at browser_download_url, failed after the user had already
+      // plugged the board in. The cost is a Pages deploy per release; see
+      // .github/workflows/pages.yml.
+      const MANIFEST = 'manifest.json'
 
       const status = document.getElementById('status')
 
@@ -271,56 +270,23 @@
       }
 
       const load = async () => {
-        const response = await fetch(
-          `https://api.github.com/repos/${REPOSITORY}/releases/latest`,
-          { headers: { accept: 'application/vnd.github+json' } }
-        )
+        const response = await fetch(MANIFEST)
 
         if (!response.ok) {
-          throw new Error(`release lookup failed with ${response.status}`)
+          throw new Error(`manifest lookup failed with ${response.status}`)
         }
 
-        const release = await response.json()
-        const builds = []
-
-        for (const [board, chipFamily] of Object.entries(CHIP_FAMILIES)) {
-          const asset = release.assets.find(
-            (entry) => entry.name === `tank-buddy-${board}-full.bin`
-          )
-
-          if (asset) {
-            builds.push({
-              chipFamily,
-              parts: [{ path: asset.browser_download_url, offset: 0 }],
-            })
-          }
-        }
-
-        if (builds.length === 0) {
-          throw new Error('this release carries no flashable images')
-        }
-
-        const manifest = {
-          name: 'TankBuddy',
-          version: release.tag_name,
-          // The images already contain a fresh filesystem, and a stale one left
-          // behind would shadow it.
-          new_install_prompt_erase: true,
-          builds,
-        }
-
-        const url = URL.createObjectURL(
-          new Blob([JSON.stringify(manifest)], { type: 'application/json' })
-        )
+        const manifest = await response.json()
         const installer = document.getElementById('installer')
-        installer.setAttribute('manifest', url)
+
+        installer.setAttribute('manifest', MANIFEST)
         installer.style.display = 'block'
 
-        status.textContent = `Version ${release.tag_name} · ${builds.length} boards`
+        status.textContent = `Version ${manifest.version} · ${manifest.builds.length} boards`
       }
 
       load().catch((error) => {
-        status.textContent = `Could not load the latest release: ${error.message}`
+        status.textContent = `Could not load the firmware manifest: ${error.message}`
       })
     </script>
   </body>
