@@ -323,9 +323,13 @@ jobs:
       # release with those assets attached, CHANGELOG.md, the version in
       # pyproject.toml, and the release commit pushed back to main. That push
       # uses GITHUB_TOKEN, so it starts no workflow run and cannot loop.
+      #
+      # SEMANTIC_RELEASE_PUBLISH is what adds the plugins that write; see
+      # release.config.mjs. Without it this run would analyse and stop.
       - name: Tag, release and attach the assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEMANTIC_RELEASE_PUBLISH: 'true'
         run: pnpm exec semantic-release
 
   # Republishes the installer and the update bundle for the release just cut.
