@@ -5,30 +5,30 @@ import { beginWebUiUpdate, commitWebUiUpdate, putWebUiAsset } from '../api'
  * the fetching and hands the result to the device over the LAN -- which is also
  * the only way this device updates at all, since the firmware image does not
  * fit twice into 4 MB and therefore cannot be replaced over the air.
+ *
+ * The bundle comes from the deploy site rather than from the release it was
+ * built from, and that is not a preference. This page is served by the device
+ * over plain HTTP, so a release asset is cross-origin, and
+ * `github.com/.../releases/download/` sends no Access-Control-Allow-Origin --
+ * neither on the download nor on the `release-assets.githubusercontent.com` it
+ * redirects to. The fetch was therefore blocked by CORS *after* the panel had
+ * already offered the update. GitHub Pages does send the header.
+ *
+ * One request, not a lookup followed by a download: the bundle already names
+ * the version it carries, so asking the release API first would add a second
+ * truth that can drift, plus an unauthenticated 60-requests-per-hour-per-IP
+ * limit on the only path this device can be updated through.
  */
-const RELEASE_API =
-  'https://api.github.com/repos/tank-buddy/tank-buddy/releases/latest'
+export const BUNDLE_URL = 'https://tank-buddy.github.io/tank-buddy/web-ui.json'
+
+/** Injected at build time; the running page is the installed version. */
+export const installedVersion: string = __UI_VERSION__
 
 /**
  * One JSON file holding every asset base64-encoded, rather than an archive.
  * A tar or zip would need unpacking code in this bundle, and every byte here is
  * flashed onto the device.
  */
-const BUNDLE_ASSET = 'web-ui.json'
-
-/** Injected at build time; the running page is the installed version. */
-export const installedVersion: string = __UI_VERSION__
-
-interface ReleaseAssetInterface {
-  name: string
-  browser_download_url: string
-}
-
-interface ReleaseInterface {
-  tag_name: string
-  assets: ReleaseAssetInterface[]
-}
-
 interface BundleInterface {
   version: string
   /** Path below the web-UI root, to base64 content. */
@@ -37,28 +37,25 @@ interface BundleInterface {
 
 export interface AvailableUpdateInterface {
   version: string
-  bundleUrl: string
+  files: Record<string, string>
 }
 
-/** Null when the latest release is the one already running. */
+/** Null when the published bundle is the one already running. */
 export const findUpdate =
   async (): Promise<AvailableUpdateInterface | null> => {
-    const response = await fetch(RELEASE_API, {
-      headers: { accept: 'application/vnd.github+json' },
-    })
+    const response = await fetch(BUNDLE_URL)
 
     if (!response.ok) {
-      throw new Error(`Release lookup failed with ${response.status}`)
+      throw new Error(`Bundle lookup failed with ${response.status}`)
     }
 
-    const release = (await response.json()) as ReleaseInterface
-    const asset = release.assets.find((entry) => entry.name === BUNDLE_ASSET)
+    const bundle = (await response.json()) as BundleInterface
 
-    if (asset === undefined || release.tag_name === installedVersion) {
+    if (bundle.version === installedVersion) {
       return null
     }
 
-    return { version: release.tag_name, bundleUrl: asset.browser_download_url }
+    return { version: bundle.version, files: bundle.files }
   }
 
 const decodeBase64 = (value: string): Uint8Array => {
@@ -78,17 +75,10 @@ const decodeBase64 = (value: string): Uint8Array => {
  * several buffers at once.
  */
 export const applyUpdate = async (
-  bundleUrl: string,
+  files: Record<string, string>,
   onProgress: (uploaded: number, total: number) => void
 ): Promise<void> => {
-  const response = await fetch(bundleUrl)
-
-  if (!response.ok) {
-    throw new Error(`Bundle download failed with ${response.status}`)
-  }
-
-  const bundle = (await response.json()) as BundleInterface
-  const entries = Object.entries(bundle.files)
+  const entries = Object.entries(files)
 
   await beginWebUiUpdate()
 

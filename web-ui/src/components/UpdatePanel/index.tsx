@@ -48,7 +48,7 @@ const UpdatePanel = () => {
     setError(null)
 
     try {
-      await applyUpdate(available.bundleUrl, (uploaded, total) => {
+      await applyUpdate(available.files, (uploaded, total) => {
         setProgress(`${uploaded}/${total}`)
       })
       setStatus('installed')
