@@ -40,6 +40,12 @@ env:
 jobs:
   version:
     name: Work out whether this warrants a release
+    permissions:
+      # Needed even though this job publishes nothing. semantic-release verifies
+      # push access in its core with a real `git push --dry-run` -- before any
+      # plugin loads, and regardless of its own --dry-run flag -- so a job that
+      # only works out a number still has to be allowed to push.
+      contents: write
     runs-on: ubuntu-latest
     outputs:
       published: ${{ steps.next.outputs.published }}
