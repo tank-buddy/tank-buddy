@@ -164,7 +164,8 @@ web-ui/mocks/     MSW handlers — one definition for dev server and tests
 web-ui/tests/     Vitest browser-mode suite (real Chromium)
 manifest.py       Freezes src/ into a custom firmware image
 boards/           Board definitions, one per supported chip
-docs/             The browser installer, published with GitHub Pages
+docs/             The browser installer, deployed to GitHub Pages by Actions
+                  together with the release's flash images (see CLAUDE.md)
 ```
 
 ## 3D printed case

@@ -167,6 +167,20 @@ Three things about that image are easy to get wrong:
 
 > **Firmware is not updated over the air here.** OTA needs two app partitions; `partitions-4MiB-ota.csv` gives each 1.5 MB against an app of ~1.50 MB. It would fit with a few kilobytes to spare, and two slots would take 3 of the 4 MB — no headroom for the app and far less filesystem. So the web UI stays a filesystem asset rather than being frozen in: the filesystem is the only part of the device that is refreshed without a cable.
 
+### Browser installer (`docs/`)
+
+An ESP Web Tools page on GitHub Pages, from which someone flashes a blank board over Web Serial. **The flash images are copied onto the Pages site and served from it** — `.github/workflows/pages.yml` downloads the release's `-full.bin` assets into `_site/firmware/` and `tools/build_pages_manifest.py` writes the manifest next to them, with `path` values relative to that manifest.
+
+That indirection is not a preference, and the obvious shortcut does not work. **A browser cannot fetch a GitHub release asset from another origin at all.** `github.com/…/releases/download/` answers a cross-origin request with a 302 carrying no `Access-Control-Allow-Origin`, and the `release-assets.githubusercontent.com` it redirects to sends no CORS headers either — so does the `api.github.com/…/releases/assets/{id}` route, whose own 302 *is* permissive but whose target is not. The page used to build a `blob:` manifest in the browser from the release API and point each part at `browser_download_url`; it failed with a CORS error *after* the user had plugged the board in and the chip had been detected. Do not reintroduce a manifest that references `github.com`, however convenient — verify with `curl -I -H 'Origin: …'` rather than assuming, and note that `esp-web-tools` resolves `parts[].path` against the manifest URL, falling back to `location` only for `blob:`/`data:` manifests (that fallback is why the old version needed absolute URLs in the first place).
+
+The consequences are worth stating, because they overturn what the page was designed around:
+
+- **Pages must be served by Actions, not from a branch folder.** Publishing from `main:/docs` was `build_type: legacy` in the Pages API; five 4 MB images have no business in git. Switching that is a repository setting, not something in this tree.
+- **A release now costs a Pages deploy**, so the site is redeployed per release rather than never. `pages.yml` triggers on `workflow_run` after *Release* rather than on the `release` event, because *Release* itself triggers on `created` and the two would race — the manifest would be built before `publish` had uploaded anything.
+- **The page no longer calls the GitHub API**, which also removes an unauthenticated 60-requests-per-hour-per-IP rate limit from the path a first-time user walks.
+
+> **`Detected flash size: undefined` in the installer log is upstream and expected.** `esptool-js` fails to read the flash ID in the browser on several chips ([esptool-js#217](https://github.com/espressif/esptool-js/issues/217)) where Python `esptool` reads it fine. It is a warning, not the failure — the images are written from offset 0 with an explicit size, so nothing depends on the detection.
+
 ## Conventions
 
 - Python module/function/variable names are `snake_case`. **The API and settings are snake_case too** (`tank.min_distance`) — the old camelCase JSON boundary is gone along with `Config`/`DictSchema`.
