@@ -40,6 +40,9 @@ env:
 jobs:
   version:
     name: Work out whether this warrants a release
+    # ci.yml carries these too, and for the same reason: the default is 360
+    # minutes, so a stuck step holds a release open for six hours.
+    timeout-minutes: 10
     permissions:
       # Needed even though this job publishes nothing. semantic-release verifies
       # push access in its core with a real `git push --dry-run` -- before any
@@ -98,6 +101,7 @@ jobs:
 
   web-ui:
     name: Build the web UI and its update bundle
+    timeout-minutes: 20
     needs: version
     if: needs.version.outputs.published == 'true'
     runs-on: ubuntu-latest
@@ -130,13 +134,16 @@ jobs:
       - name: Install web dependencies
         run: pnpm install --frozen-lockfile
 
-      # --filter because playwright belongs to the device UI, not to the
-      # workspace root; a bare `pnpm exec` cannot resolve it. Same trap as in
-      # ci.yml, which is where it actually bit.
+      # No --with-deps, for the reason ci.yml records: it shells out to apt-get,
+      # the runner image already ships google-chrome-stable and therefore every
+      # library Chromium needs, and an unreachable azure.archive.ubuntu.com
+      # mirror makes apt retry into long timeouts. That hung this job for 18
+      # minutes on the first release after the workspace move.
+      #
+      # --filter because playwright belongs to the device UI, not the workspace
+      # root; a bare `pnpm exec` cannot resolve it.
       - name: Install Chromium
-        run: >-
-          pnpm --filter @tank-buddy/device-ui exec
-          playwright install --with-deps chromium
+        run: pnpm --filter @tank-buddy/device-ui exec playwright install chromium
 
       - name: Lint, typecheck and test everything
         run: make check-all
@@ -180,6 +187,9 @@ jobs:
 
   firmware:
     name: Build firmware (${{ matrix.board }})
+    # Higher than the others: a cold cache clones MicroPython with submodules and
+    # compiles mpy-cross before the firmware itself.
+    timeout-minutes: 45
     # Deliberately not given the version: manifest.py freezes src/, which
     # carries no version number. Only the interface does.
     needs: version
@@ -247,6 +257,7 @@ jobs:
 
   publish:
     name: Merge the flash images and cut the release
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     needs: [version, web-ui, firmware]
     # A manual run defaults to publishing nothing, so the whole chain can be

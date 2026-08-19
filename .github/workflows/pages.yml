@@ -42,6 +42,9 @@ concurrency:
 jobs:
   deploy:
     name: Publish the browser installer
+    # As in the other workflows: the default of 360 minutes means a stuck step
+    # holds the deployment open for six hours.
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     environment:
       name: github-pages
