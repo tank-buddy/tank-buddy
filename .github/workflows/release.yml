@@ -256,8 +256,15 @@ jobs:
       needs.version.outputs.published == 'true' &&
       inputs.dry_run != true
     permissions:
-      # The one job that tags, releases and pushes the release commit.
+      # The one job that tags and releases.
       contents: write
+      # @semantic-release/github does more than publish. Its `success` step
+      # comments on and labels the pull requests a release contains, and its
+      # `fail` step opens an issue when a release breaks -- all of which is on by
+      # default (successComment, releasedLabels). Without these two the release
+      # itself would succeed and the run would go red immediately afterwards.
+      issues: write
+      pull-requests: write
 
     steps:
       - name: Checkout code
