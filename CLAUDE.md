@@ -114,10 +114,15 @@ One pnpm workspace, one lockfile. Two apps under `web/apps/` and the configurati
 | `@tank-buddy/eslint-config` | shared lint rules |
 | `@tank-buddy/prettier-config` | shared formatting |
 | `@tank-buddy/tailwind-config` | the iOS palette both pages are built from |
+| `@tank-buddy/ui` | `Card`, `Row`, `Alert` — the grouped-list primitives |
 | `@tank-buddy/typescript-config` | shared compiler settings |
 | `@tank-buddy/vite-config` | the `preact()` + `tailwindcss()` plugin base |
 
 **Separate packages, not one project with two entries.** `installer` depends on esp-web-tools, whose flash dialog alone is 308 kB against a 23 kB device bundle. pnpm resolves each package against its own dependencies, so `device-ui` cannot import it without declaring it — the isolation replaces a lint rule. **That guarantee ends if anyone sets `node-linker=hoisted` or `shamefully-hoist`.**
+
+**`@tank-buddy/ui` holds the primitives, and the installer is built from them** rather than from lookalike markup: same `Card` (group header outside, `overflow-hidden` so hairlines cannot poke past the corners, no padding of its own), same `Row` (`min-h-11` for the 44 px touch target, `px-4 py-2.5`, hairline inset with `after:left-4` and `last:after:hidden`). The installer's own components are the two things the device has no use for: `Prose` for a card of running text — the device's cards only ever hold Rows, which bring their own padding — and `Code` for inline literals. Moving `Row` out also closed a gap in it: its fallback rendered a `<label>`, which its own comment says a row should never be without a control inside it to associate with. Nothing hit that before, because every existing row passes `value`, `onClick` or `children`; a board list of label-plus-hint rows does. The fallback is a `<div>` now and `<label>` needs `children`.
+
+**Tailwind has to be told about the package.** v4 discovers classes by scanning the project and deliberately skips `node_modules`, where `@tank-buddy/ui` is symlinked from, so both apps carry `@source '../../../packages/ui/src'`. Without it the utilities inside `Card` and `Row` are simply absent from the output — the lists lose their padding, radius and hairlines, with no error anywhere.
 
 **Shared versions live in the catalog** in `pnpm-workspace.yaml`, referenced as `catalog:`. A lockfile stops versions drifting apart at install time; a catalog stops them being *declared* apart, which is what happens when two `package.json` files are edited months apart. It also gives each version one place to be explained — the TypeScript `~5.9.3` pin and its typescript-eslint reason used to exist once and would now have to be repeated or forgotten. Dependabot has supported catalogs since February 2025 with rough edges ([#11953](https://github.com/dependabot/dependabot-core/issues/11953), [#14339](https://github.com/dependabot/dependabot-core/issues/14339)); a bump that stops arriving is visible rather than silent.
 
@@ -155,7 +160,7 @@ Tooling: **ESLint (flat config) + Prettier**, not Biome. `eslint.config.js` runs
 
 > **TypeScript stays on 5.x on purpose.** `latest` is 7.x (the Go port), but `typescript-eslint` caps at `<6.1.0`, even in its canary. ESLint wins; revisit when typescript-eslint catches up.
 
-Conventions: one directory per component with `index.tsx`; props interfaces are declared inline. No `clsx` — class lists are template literals, and the genuinely conditional cases (`Alert`, `Button`) use lookup maps. `SettingsPanel` is driven by a `FIELDS` table whose `path` values are the dot paths from `MUTABLE_FIELDS` (the first segment also selects the group card); it keeps form state as **raw strings** and diffs against the loaded snapshot, so only changed fields are patched and Save stays disabled until something actually differs.
+Conventions: one directory per component with `index.tsx` for app-local components; the shared ones in `@tank-buddy/ui` are flat files, since a directory per component earns nothing across a package boundary. props interfaces are declared inline. No `clsx` — class lists are template literals, and the genuinely conditional cases (`Alert`, `Button`) use lookup maps. `SettingsPanel` is driven by a `FIELDS` table whose `path` values are the dot paths from `MUTABLE_FIELDS` (the first segment also selects the group card); it keeps form state as **raw strings** and diffs against the loaded snapshot, so only changed fields are patched and Save stays disabled until something actually differs.
 
 i18n is static: `utils/i18n` imports both language files and picks one at module load. No dynamic import, no `window.__t`, no async `init()` — the old version cost a render-blocking round trip to a single-threaded server and made `t()` unsafe to call before it resolved.
 

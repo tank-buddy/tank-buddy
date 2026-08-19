@@ -16,6 +16,13 @@
  * component's TONES map was written to work around cannot occur.
  */
 @import '@tank-buddy/tailwind-config/palette.css';
+/*
+ * Tailwind v4 discovers classes by scanning the project, and it deliberately
+ * skips node_modules -- where @tank-buddy/ui is symlinked from. Without this the
+ * utilities used inside Card and Row are simply absent from the output and the
+ * grouped lists lose their padding, radius and hairlines, with no error anywhere.
+ */
+@source '../../../packages/ui/src';
 
 @theme inline {
   /* Apple's switch knob: a wide soft shadow plus a tight contact shadow. */

@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@tank-buddy/tailwind-config": "workspace:*",
+    "@tank-buddy/ui": "workspace:*",
     "preact": "catalog:",
     "tailwindcss": "catalog:"
   },

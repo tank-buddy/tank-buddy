@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@tank-buddy/tailwind-config": "workspace:*",
+    "@tank-buddy/ui": "workspace:*",
     "esp-web-tools": "^10.4.0",
     "preact": "catalog:",
     "tailwindcss": "catalog:"

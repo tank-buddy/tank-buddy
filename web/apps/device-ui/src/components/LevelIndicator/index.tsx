@@ -1,9 +1,9 @@
+import Card from '@tank-buddy/ui/Card'
+import Row from '@tank-buddy/ui/Row'
 import { useEffect, useState } from 'preact/hooks'
 import { getLevel } from '../../utils/api'
 import type { LevelInterface } from '../../utils/api/types'
 import { t } from '../../utils/i18n'
-import Card from '../Card'
-import Row from '../Row'
 
 const POLL_INTERVAL_MS = 5000
 

@@ -1,3 +1,6 @@
+import Alert from '@tank-buddy/ui/Alert'
+import Card from '@tank-buddy/ui/Card'
+import Row from '@tank-buddy/ui/Row'
 import { useState } from 'preact/hooks'
 import { t } from '../../utils/i18n'
 import {
@@ -6,10 +9,7 @@ import {
   installedVersion,
   type AvailableUpdateInterface,
 } from '../../utils/update'
-import Alert from '../Alert'
-import Card from '../Card'
 import ConfirmSheet from '../ConfirmSheet'
-import Row from '../Row'
 import Spinner from '../Spinner'
 
 type Status =

@@ -1,3 +1,6 @@
+import Alert from '@tank-buddy/ui/Alert'
+import Card from '@tank-buddy/ui/Card'
+import Row from '@tank-buddy/ui/Row'
 import { useEffect, useState } from 'preact/hooks'
 import { getSettings, patchSettings, putSystemOperation } from '../../utils/api'
 import type {
@@ -5,12 +8,9 @@ import type {
   SystemOperationIdentifier,
 } from '../../utils/api/types'
 import { t } from '../../utils/i18n'
-import Alert from '../Alert'
 import Button from '../Button'
-import Card from '../Card'
 import ConfirmSheet from '../ConfirmSheet'
 import Input from '../Input'
-import Row from '../Row'
 import SegmentedControl from '../SegmentedControl'
 import Spinner from '../Spinner'
 import Switch from '../Switch'

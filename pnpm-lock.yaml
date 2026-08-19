@@ -74,6 +74,9 @@ importers:
       '@tank-buddy/tailwind-config':
         specifier: workspace:*
         version: link:../../packages/tailwind-config
+      '@tank-buddy/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       preact:
         specifier: 'catalog:'
         version: 10.29.8
@@ -159,6 +162,9 @@ importers:
       '@tank-buddy/tailwind-config':
         specifier: workspace:*
         version: link:../../packages/tailwind-config
+      '@tank-buddy/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       esp-web-tools:
         specifier: ^10.4.0
         version: 10.4.0
@@ -234,6 +240,12 @@ importers:
         version: 4.3.3
 
   web/packages/typescript-config: {}
+
+  web/packages/ui:
+    dependencies:
+      preact:
+        specifier: 'catalog:'
+        version: 10.29.8
 
   web/packages/vite-config:
     dependencies:

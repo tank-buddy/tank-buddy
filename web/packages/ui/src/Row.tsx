@@ -106,7 +106,10 @@ const Row = (props: RowProps) => {
     )
   }
 
-  if (value !== undefined) {
+  // A `<label>` only where there is a control inside it to be associated with;
+  // anything else -- a read-only value, a label with an explanatory hint and
+  // nothing to operate -- is a plain row of information.
+  if (children === undefined) {
     return (
       <div class={`${BASE} ${layout}`} data-testid={testId}>
         {content}
