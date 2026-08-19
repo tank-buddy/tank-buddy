@@ -29,10 +29,12 @@ updates:
       # signature drift.
       - dependency-name: micropython-esp32-stubs
 
-  # The root project is release tooling only -- semantic-release and its plugins.
-  # It is pinned to exact versions in package.json because it is the thing that
-  # decides version numbers and pushes to main; a floating range there is a
-  # supply-chain question, not a convenience.
+  # The root project is release tooling only -- semantic-release and the plugins
+  # release.config.mjs names. Those have to be listed even though semantic-release
+  # ships three of them as defaults: unlisted, their versions move with a
+  # semantic-release bump and never reach this file, so the plugin that creates
+  # releases could change behaviour unannounced. Caret ranges as in web-ui/ --
+  # every install uses --frozen-lockfile, so the lockfile is the pin.
   - package-ecosystem: npm
     directory: /
     schedule:

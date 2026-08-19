@@ -1,5 +1,11 @@
 [project]
 name = "tank-buddy"
+# Not the released version, and deliberately not kept in step with it. `[tool.uv]
+# package = false` below means nothing builds or publishes this project, so the
+# field exists only because [project] requires it. The real version is the git
+# tag, which semantic-release owns -- it cannot update this file, because that
+# would mean a commit to main and main does not take commits from the bot. See
+# the release section in CLAUDE.md.
 version = "0.1.0"
 description = "Water tank level monitor running on an ESP32 (MicroPython)"
 requires-python = ">=3.12"
