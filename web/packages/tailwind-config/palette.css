@@ -1,0 +1,147 @@
+/*
+ * The iOS palette, shared by the device interface and the installer page.
+ *
+ * Greys, separators and the status colours are Apple's system colours; the teal
+ * is the exact value from tank-buddy.svg.
+ *
+ * Three selectors, because the two consumers theme differently and both have to
+ * work from one set of values:
+ *
+ *   :root                                  the light palette
+ *   @media dark + :root:not([data-theme='light'])   follows the system
+ *   [data-theme='dark']                    an explicit choice wins
+ *
+ * web-ui writes `data-theme` before first paint and offers a toggle, so the
+ * attribute rules are what it uses. The installer has no toggle and never sets
+ * the attribute, so it gets the media query. Neither can see the other's
+ * mechanism misbehave, and the values exist once.
+ *
+ * Add a colour in three places: both dark blocks and the `@theme inline` map at
+ * the end. Never as a raw hex in markup.
+ */
+
+:root {
+  color-scheme: light;
+
+  --brand: #09aba7;
+  /* Deep end of the water gradient. */
+  --brand-deep: #05716f;
+  /* Teal is only 2.6:1 against white, so text uses a darkened variant. */
+  --brand-ink: #067c79;
+  /*
+   * Fill behind white text, therefore darker than the brand and identical in
+   * both themes: white on #09aba7 is 2.6:1, on this it is 4.9:1. The brand value
+   * stays reserved for graphics -- water, switch track, meter.
+   */
+  --accent: #06807d;
+
+  --surface: #ffffff;
+  --surface-sunken: #f2f2f7;
+  --surface-elevated: #ffffff;
+
+  --separator: rgba(60, 60, 67, 0.29);
+  --fill: rgba(120, 120, 128, 0.12);
+  --track: #e9e9ea;
+  /*
+   * Selected segment of a SegmentedControl. Its own token rather than
+   * `surface-elevated`, because it has to read as *lighter than the fill it sits
+   * on* -- and in the dark theme an elevated surface is darker than that fill,
+   * which inverted the control and made the selection nearly invisible.
+   */
+  --segment: #ffffff;
+
+  --label: #000000;
+  --label-secondary: rgba(60, 60, 67, 0.6);
+  --label-tertiary: rgba(60, 60, 67, 0.3);
+
+  --destructive: #ff3b30;
+  --success: #34c759;
+  --warning: #ff9500;
+}
+
+/* System preference, unless a page has explicitly chosen light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --brand: #09aba7;
+    --brand-deep: #045755;
+    --brand-ink: #2ed3ce;
+
+    --surface: #1c1c1e;
+    --surface-sunken: #000000;
+    --surface-elevated: #2c2c2e;
+
+    --separator: rgba(84, 84, 88, 0.65);
+    --fill: rgba(120, 120, 128, 0.24);
+    --track: #39393d;
+    /* systemGray2 (dark): clearly lighter than --fill over --surface. */
+    --segment: #636366;
+
+    --label: #ffffff;
+    --label-secondary: rgba(235, 235, 245, 0.6);
+    --label-tertiary: rgba(235, 235, 245, 0.3);
+
+    --destructive: #ff453a;
+    --success: #30d158;
+    --warning: #ff9f0a;
+  }
+}
+
+/* An explicit choice, written by web-ui's toggle. Wins over the query above. */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --brand: #09aba7;
+  --brand-deep: #045755;
+  --brand-ink: #2ed3ce;
+
+  --surface: #1c1c1e;
+  --surface-sunken: #000000;
+  --surface-elevated: #2c2c2e;
+
+  --separator: rgba(84, 84, 88, 0.65);
+  --fill: rgba(120, 120, 128, 0.24);
+  --track: #39393d;
+  --segment: #636366;
+
+  --label: #ffffff;
+  --label-secondary: rgba(235, 235, 245, 0.6);
+  --label-tertiary: rgba(235, 235, 245, 0.3);
+
+  --destructive: #ff453a;
+  --success: #30d158;
+  --warning: #ff9f0a;
+}
+
+@theme inline {
+  /*
+   * No webfont bytes: on an iPhone this resolves to the real SF Pro, which is
+   * the cheapest and most native-looking lever available at zero flash cost.
+   */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text',
+    'Segoe UI', Roboto, system-ui, sans-serif;
+
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-ink: var(--brand-ink);
+  --color-accent: var(--accent);
+
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-elevated: var(--surface-elevated);
+
+  --color-separator: var(--separator);
+  --color-fill: var(--fill);
+  --color-track: var(--track);
+  --color-segment: var(--segment);
+
+  --color-label: var(--label);
+  --color-label-secondary: var(--label-secondary);
+  --color-label-tertiary: var(--label-tertiary);
+
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+}

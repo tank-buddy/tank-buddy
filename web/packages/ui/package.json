@@ -1,0 +1,14 @@
+{
+  "name": "@tank-buddy/ui",
+  "private": true,
+  "type": "module",
+  "description": "The grouped-list primitives both pages are built from. Not published; consumed through the workspace.",
+  "exports": {
+    "./Alert": "./src/Alert.tsx",
+    "./Card": "./src/Card.tsx",
+    "./Row": "./src/Row.tsx"
+  },
+  "peerDependencies": {
+    "preact": "catalog:"
+  }
+}

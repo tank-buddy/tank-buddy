@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-TankBuddy is a water-tank level monitor that runs entirely on an **ESP32** (target board: `ESP32_GENERIC_C6`). MicroPython backend in `src/`, Preact web UI in `web-ui/`, both flashed onto the device. A VL53L0X (TOF200C) I²C distance sensor measures the gap to the water surface. The device publishes the level to Home Assistant over MQTT and serves a plain-HTTP API plus a single-page UI from its own flash.
+TankBuddy is a water-tank level monitor that runs entirely on an **ESP32** (target board: `ESP32_GENERIC_C6`). MicroPython backend in `src/`, Preact web UI in `web/apps/device-ui/`, both flashed onto the device. A VL53L0X (TOF200C) I²C distance sensor measures the gap to the water surface. The device publishes the level to Home Assistant over MQTT and serves a plain-HTTP API plus a single-page UI from its own flash.
 
 **There is no TLS.** SSL was removed for RAM and latency reasons; it had already been removed once before (`806543f`) and re-added (`a4e5e5e`). Do not reintroduce it without discussing the RAM budget.
 
@@ -29,7 +29,7 @@ Everything goes through the `Makefile`. **Nothing is containerised** — `uv` pi
 | Push local `settings.json` to the device | `make provision` |
 | Flash and open REPL | `make run-on-device` |
 
-Web UI, from `web-ui/`: `pnpm dev` (MSW mocks the API in-browser — no second process), `pnpm build`, `pnpm lint`, `pnpm format`, `pnpm typecheck`, `pnpm test`, `ANALYZE=1 pnpm build`.
+Web, from anywhere in the repo: `pnpm --filter @tank-buddy/device-ui dev` (MSW mocks the API in-browser — no second process), `… build`, `… lint`, `… typecheck`, `… test`, `ANALYZE=1 … build`; `pnpm --filter @tank-buddy/installer dev` for the installer page. `pnpm -r run lint` covers both apps, and formatting is one workspace-wide pass: `pnpm run format`.
 
 Release, from the root: `pnpm exec semantic-release --dry-run --no-ci` (needs `GH_TOKEN`) prints the version the next release would get without touching anything. The root `package.json` is release tooling only — **nothing in it ships to the device.**
 
@@ -41,9 +41,9 @@ Git hooks: `uv run pre-commit install` (ruff check, ruff format, pyright).
 
 Run a single file the normal way: `uv run pytest tests/test_settings.py`.
 
-**Web UI** — Vitest in **browser mode**, tests in `web-ui/tests/` mirroring `src/`. They run in a real headless Chromium via Playwright rather than a DOM simulation, because the app depends on a service worker (MSW) and on real layout. Consequently there is no `happy-dom`/`jsdom` and no `@testing-library/*`: rendering comes from `vitest-browser-preact`, queries and interaction from `vitest/browser`'s `page`.
+**Web UI** — Vitest in **browser mode**, tests in `web/apps/device-ui/tests/` mirroring `src/`. They run in a real headless Chromium via Playwright rather than a DOM simulation, because the app depends on a service worker (MSW) and on real layout. Consequently there is no `happy-dom`/`jsdom` and no `@testing-library/*`: rendering comes from `vitest-browser-preact`, queries and interaction from `vitest/browser`'s `page`.
 
-The MSW handlers in `web-ui/mocks/` are the **single** mock definition — the dev server and the test suite start the same worker, so they cannot drift. Override per test with `worker.use(...)`.
+The MSW handlers in `web/apps/device-ui/mocks/` are the **single** mock definition — the dev server and the test suite start the same worker, so they cannot drift. Override per test with `worker.use(...)`.
 
 They sit **outside `src/`** on purpose: `src/` is what ships. `main.tsx` imports them behind `import.meta.env.DEV`, which tree-shakes msw out of the production build — but that guard only covers one call site. An accidental `import { handlers }` from a component grows the bundle from **~16 kB to ~147 kB** with a green build (measured), which would swamp the device's flash budget. So `eslint.config.js` restricts imports of `mocks/**` to `src/main.tsx`, `tests/**` and the mocks themselves. Do not relax that.
 
@@ -95,7 +95,7 @@ Each subdirectory is a package whose `__init__.py` re-exports its class (`from h
 
 **Updating the web UI is browser-mediated.** The device has no TLS and cannot reach GitHub, so the page fetches the bundle over HTTPS and hands the files over plain HTTP on the LAN. **It fetches it from the Pages site, not from the release** — `https://tank-buddy.github.io/tank-buddy/web-ui.json`, deployed there by `pages.yml`. The page is served by the device over plain HTTP, so a release asset is cross-origin, and `github.com/…/releases/download/` sends no `Access-Control-Allow-Origin` on the download or on the redirect target behind it; Pages does. This is the same defect as the installer's, in a second place, and it failed the same way: `findUpdate` succeeded because `api.github.com` *is* permissive, so the panel offered an update, and the download was then blocked by CORS. It is one request now — the bundle names the version it carries, so a separate lookup would only add a second truth that can drift plus an unauthenticated 60-per-hour rate limit on the device's only cable-free update path. The suite could not see any of it: the MSW handler answered on `example.test`, where CORS never applies, which is why the handler now imports `BUNDLE_URL` from the app instead of restating it. Firmware cannot be refreshed this way at all — OTA needs two app partitions and `partitions-4MiB-ota.csv` gives each 1.5 MB against an image of ~1.9 MB — which is why the UI stays a filesystem asset. Three calls rather than one upload because there is no archive format on the device, and a staging tree means an abandoned update leaves the previous UI serving. The endpoint is unauthenticated like the rest of the API, so `is_safe_asset_path` is the only guard: one optional `assets/` level, a conservative character set, an extension the build emits, and a size ceiling. Do not loosen it to accept a path the build does not produce.
 
-`web-ui/src/utils/api/types.ts` mirrors this surface; it and `MUTABLE_FIELDS` must be kept in sync.
+`web/apps/device-ui/src/utils/api/types.ts` mirrors this surface; it and `MUTABLE_FIELDS` must be kept in sync.
 
 ### MQTT / Home Assistant
 
@@ -103,7 +103,37 @@ Three entities — fill level (%), distance (mm, diagnostic), Wi-Fi RSSI (dBm, d
 
 **MQTT only starts in station mode with a configured broker** (`settings.mqtt_is_usable()`). In the recovery AP there is no broker to reach and a retrying client would only consume RAM while the user is trying to fix the configuration. This is the most important regression to preserve — it is covered by parametrised tests.
 
-### Web UI (`web-ui/`)
+### The web workspace (`web/`)
+
+One pnpm workspace, one lockfile. Two apps under `web/apps/` and the configuration they share under `web/packages/`:
+
+| Package | Where it runs |
+|---|---|
+| `@tank-buddy/device-ui` | flashed into the device's filesystem, served by the ESP32 over plain HTTP |
+| `@tank-buddy/installer` | GitHub Pages, talks to a board over Web Serial |
+| `@tank-buddy/eslint-config` | shared lint rules |
+| `@tank-buddy/prettier-config` | shared formatting |
+| `@tank-buddy/tailwind-config` | the iOS palette both pages are built from |
+| `@tank-buddy/ui` | `Card`, `Row`, `Alert` — the grouped-list primitives |
+| `@tank-buddy/typescript-config` | shared compiler settings |
+| `@tank-buddy/vite-config` | the `preact()` + `tailwindcss()` plugin base |
+
+**Separate packages, not one project with two entries.** `installer` depends on esp-web-tools, whose flash dialog alone is 308 kB against a 23 kB device bundle. pnpm resolves each package against its own dependencies, so `device-ui` cannot import it without declaring it — the isolation replaces a lint rule. **That guarantee ends if anyone sets `node-linker=hoisted` or `shamefully-hoist`.**
+
+**`@tank-buddy/ui` holds the primitives, and the installer is built from them** rather than from lookalike markup: same `Card` (group header outside, `overflow-hidden` so hairlines cannot poke past the corners, no padding of its own), same `Row` (`min-h-11` for the 44 px touch target, `px-4 py-2.5`, hairline inset with `after:left-4` and `last:after:hidden`). The installer's own components are the two things the device has no use for: `Prose` for a card of running text — the device's cards only ever hold Rows, which bring their own padding — and `Code` for inline literals. Moving `Row` out also closed a gap in it: its fallback rendered a `<label>`, which its own comment says a row should never be without a control inside it to associate with. Nothing hit that before, because every existing row passes `value`, `onClick` or `children`; a board list of label-plus-hint rows does. The fallback is a `<div>` now and `<label>` needs `children`.
+
+**Tailwind has to be told about the package.** v4 discovers classes by scanning the project and deliberately skips `node_modules`, where `@tank-buddy/ui` is symlinked from, so both apps carry `@source '../../../packages/ui/src'`. Without it the utilities inside `Card` and `Row` are simply absent from the output — the lists lose their padding, radius and hairlines, with no error anywhere.
+
+**Shared versions live in the catalog** in `pnpm-workspace.yaml`, referenced as `catalog:`. A lockfile stops versions drifting apart at install time; a catalog stops them being *declared* apart, which is what happens when two `package.json` files are edited months apart. It also gives each version one place to be explained — the TypeScript `~5.9.3` pin and its typescript-eslint reason used to exist once and would now have to be repeated or forgotten. Dependabot has supported catalogs since February 2025 with rough edges ([#11953](https://github.com/dependabot/dependabot-core/issues/11953), [#14339](https://github.com/dependabot/dependabot-core/issues/14339)); a bump that stops arriving is visible rather than silent.
+
+Two details in the config packages are load-bearing:
+
+- **`@tank-buddy/prettier-config` is `.js`, not `.json`, and resolves its plugin with `require.resolve`.** Prettier resolves plugin *names* relative to the process that loads the config — the workspace root — and under pnpm the plugin lives in the config package's own `node_modules`. A bare `"prettier-plugin-organize-imports"` fails with `Cannot find package`. Resolving it where it is declared works from every package.
+- **`@tank-buddy/eslint-config` exports a function, not an array.** `tsconfigRootDir` has to resolve to the *consuming* package or the type-aware rules find no project, and `eslint-config-prettier` must stay last. Taking package-specific blocks as a parameter and appending prettier afterwards makes that ordering structural rather than a comment to obey.
+
+Prettier covers the workspace in one pass but **skips `*.md` and `.github/`**: it only ever ran inside the front-end directory before, and reflowing `CLAUDE.md` to 80 columns would make every later edit move whole paragraphs in the diff.
+
+### Web UI (`web/apps/device-ui/`)
 
 Preact + Tailwind v4 + **Vite 8** (Rolldown/Oxc). **One page, no router**: `App.tsx` renders `NavBar`, `LevelIndicator` and `SettingsPanel` in one column. The settings are a second section, not a collapsed `<details>` — this is opened from a phone, where a disclosure panel only added a tap.
 
@@ -130,7 +160,7 @@ Tooling: **ESLint (flat config) + Prettier**, not Biome. `eslint.config.js` runs
 
 > **TypeScript stays on 5.x on purpose.** `latest` is 7.x (the Go port), but `typescript-eslint` caps at `<6.1.0`, even in its canary. ESLint wins; revisit when typescript-eslint catches up.
 
-Conventions: one directory per component with `index.tsx`; props interfaces are declared inline. No `clsx` — class lists are template literals, and the genuinely conditional cases (`Alert`, `Button`) use lookup maps. `SettingsPanel` is driven by a `FIELDS` table whose `path` values are the dot paths from `MUTABLE_FIELDS` (the first segment also selects the group card); it keeps form state as **raw strings** and diffs against the loaded snapshot, so only changed fields are patched and Save stays disabled until something actually differs.
+Conventions: one directory per component with `index.tsx` for app-local components; the shared ones in `@tank-buddy/ui` are flat files, since a directory per component earns nothing across a package boundary. props interfaces are declared inline. No `clsx` — class lists are template literals, and the genuinely conditional cases (`Alert`, `Button`) use lookup maps. `SettingsPanel` is driven by a `FIELDS` table whose `path` values are the dot paths from `MUTABLE_FIELDS` (the first segment also selects the group card); it keeps form state as **raw strings** and diffs against the loaded snapshot, so only changed fields are patched and Save stays disabled until something actually differs.
 
 i18n is static: `utils/i18n` imports both language files and picks one at module load. No dynamic import, no `window.__t`, no async `init()` — the old version cost a render-blocking round trip to a single-threaded server and made `t()` unsafe to call before it resolved.
 
@@ -144,7 +174,7 @@ i18n is static: `utils/i18n` imports both language files and picks one at module
 
 ### Packaging
 
-**One flashable file per board.** `make flash-image FIRMWARE=... CHIP=... BOARD=...` builds a LittleFS image from `web-ui/dist` and merges it with the firmware at the `vfs` offset, so a single write at `0x0` produces a complete device. The release workflow does the same for every board.
+**One flashable file per board.** `make flash-image FIRMWARE=... CHIP=... BOARD=...` builds a LittleFS image from `web/apps/device-ui/dist` and merges it with the firmware at the `vfs` offset, so a single write at `0x0` produces a complete device. The release workflow does the same for every board.
 
 The geometry is not guessed — it was read off an ESP32-C6 running this firmware: `os.statvfs('/')` returns block size 4096 and 512 blocks, and `Partition.find(Partition.TYPE_DATA)` puts `vfs` at `0x200000` with exactly those 2 MiB. `esp32.Partition` on the device is the authority; `tools/build_littlefs_image.py` takes a block count for boards that differ, and mounts the image back before writing it out.
 
@@ -180,22 +210,22 @@ Four things about that pipeline are load-bearing:
 - **A release is a tag plus a GitHub release, and nothing is committed to `main`.** `main` carries `pull_request` and `required_status_checks` rulesets, and `github-actions[bot]` cannot be exempted from them: not as an `Integration`, because GitHub's own Actions app is not installed in the organisation (422), and not as a `User` with actor id `41898282` either — the API accepts that, but it does not match the actor GitHub sees on a bot push, which still fails with `GH013 … Changes must be made through a pull request`. So `@semantic-release/changelog` and `@semantic-release/git` are **not** used. Tags are unaffected, since both rulesets are `target: branch` and a tag ref matches no rule at all. The cost: no `CHANGELOG.md` in the tree, and the decorative version in `pyproject.toml` stays put — the notes live on the GitHub release. Restoring either needs a GitHub App, which *can* be a bypass actor; a PAT would too, but [semantic-release advises against it](https://semantic-release.gitbook.io/semantic-release/recipes/ci-configurations/github-actions).
 - **Both jobs that run semantic-release still need `contents: write`**, including the one that only works out a number. `verifyAuth` sits in semantic-release's core: it runs a real `git push --dry-run HEAD:main` before any plugin loads and **regardless of `--dry-run`**, failing with `EGITNOPERMISSION` otherwise. A dry-run push is not evaluated against branch rules, which is exactly why it passes on a protected branch while a real push does not — and why the rulesets only surfaced at the `prepare` step, two failed releases later.
 - **The plugins that write are only loaded when publishing**, selected by `SEMANTIC_RELEASE_PUBLISH` in `release.config.mjs`. Working out a version needs none of them. It does *not* buy the read-only permission it was first written for — see the point above. The config is `.mjs` rather than JSON because the condition, and this reasoning, cannot be expressed in JSON.
-- **Every plugin named in `release.config.mjs` is listed in the root `package.json`.** `commit-analyzer`, `release-notes-generator` and `github` also ship *inside* `semantic-release` as its defaults, so they resolve and load without being listed — which is precisely the problem: unlisted, their versions move with a `semantic-release` bump and Dependabot never offers them, so the plugin that creates releases and comments on pull requests could change behaviour unannounced. Caret ranges, as in `web-ui/`: every install runs `--frozen-lockfile`, so the lockfile is what pins and the range in `package.json` cannot move anything on its own.
+- **Every plugin named in `release.config.mjs` is listed in the root `package.json`.** `commit-analyzer`, `release-notes-generator` and `github` also ship *inside* `semantic-release` as its defaults, so they resolve and load without being listed — which is precisely the problem: unlisted, their versions move with a `semantic-release` bump and Dependabot never offers them, so the plugin that creates releases and comments on pull requests could change behaviour unannounced. Caret ranges, as in the apps: every install runs `--frozen-lockfile`, so the lockfile is what pins and the range in `package.json` cannot move anything on its own.
 - **`@semantic-release/github` needs `issues: write` and `pull-requests: write`, not just `contents: write`.** Its `success` step comments on and labels every pull request a release contains (`successComment` and `releasedLabels` are on by default), and its `fail` step opens an issue when a release breaks. Those run *after* `publish`, so with only `contents: write` the release is created and the run then goes red on the comment — the worst of both.
 - **`@semantic-release/exec` renders commands as Lodash templates**, so `${...}` is interpolated before the shell sees it. `${GITHUB_OUTPUT:-/dev/null}` fails with `SyntaxError: Unexpected token ':'`. `verifyReleaseCmd` therefore writes `.release-version` (gitignored) and the workflow turns that into job outputs — which also makes it testable outside Actions. For the same reason every template in that file is in **single** quotes: a JS template literal would consume `${nextRelease.version}` before semantic-release saw it.
 - **`pages.yml` is called, not triggered.** Since *Release* now runs on every push and only sometimes publishes, a `workflow_run` trigger could not tell a release from an ordinary commit. It keeps its own `push`/`workflow_dispatch` triggers for documentation-only changes and additionally exposes `workflow_call`, which `release.yml` uses as its last job.
 
 `version` in `pyproject.toml` is therefore **not** the released version and is not meant to match it; a comment there says so. `[tool.uv] package = false`, so nothing builds or publishes this project and the field exists only because `[project]` requires it. Keeping it in step would mean a commit to `main`, which is the one thing the bot cannot do — there was a `tools/set_project_version.py` for exactly that, removed once its only caller went away.
 
-### Browser installer (`docs/`)
+### Browser installer (`web/apps/installer/`)
 
-An ESP Web Tools page on GitHub Pages, from which someone flashes a blank board over Web Serial. **The flash images are copied onto the Pages site and served from it** — `.github/workflows/pages.yml` downloads the release's `-full.bin` assets into `_site/firmware/` and `tools/build_pages_manifest.py` writes the manifest next to them, with `path` values relative to that manifest.
+A Preact page on GitHub Pages, from which someone flashes a blank board over Web Serial. **esp-web-tools is a bundled dependency, not a CDN script** — it used to be loaded from unpkg with a floating `@10` range, which meant unreviewed third-party code executing on the page that writes a device's flash, and worse: the 308 kB flash dialog and one stub chunk per chip are *dynamic* imports, so they were fetched from unpkg **after** Connect was pressed, when the partition may already be erased. A CDN hiccup there could strand a half-written device. Bundling puts all of it on the deploy site, resolved through the lockfile; it stays lazily loaded, just from the same origin as the page and the images. `main.tsx` imports it dynamically *after* mounting, because the module reads `navigator.serial` on load and registers a custom element — an import at the top would break any build step that evaluates the module outside a browser. **The flash images are likewise copied onto the Pages site and served from it** — `.github/workflows/pages.yml` downloads the release's `-full.bin` assets into `_site/firmware/` and `tools/build_pages_manifest.py` writes the manifest next to them, with `path` values relative to that manifest.
 
 That indirection is not a preference, and the obvious shortcut does not work. **A browser cannot fetch a GitHub release asset from another origin at all.** `github.com/…/releases/download/` answers a cross-origin request with a 302 carrying no `Access-Control-Allow-Origin`, and the `release-assets.githubusercontent.com` it redirects to sends no CORS headers either — so does the `api.github.com/…/releases/assets/{id}` route, whose own 302 *is* permissive but whose target is not. The page used to build a `blob:` manifest in the browser from the release API and point each part at `browser_download_url`; it failed with a CORS error *after* the user had plugged the board in and the chip had been detected. Do not reintroduce a manifest that references `github.com`, however convenient — verify with `curl -I -H 'Origin: …'` rather than assuming, and note that `esp-web-tools` resolves `parts[].path` against the manifest URL, falling back to `location` only for `blob:`/`data:` manifests (that fallback is why the old version needed absolute URLs in the first place).
 
 The consequences are worth stating, because they overturn what the page was designed around:
 
-- **Pages must be served by Actions, not from a branch folder.** Publishing from `main:/docs` was `build_type: legacy` in the Pages API; five 4 MB images have no business in git. Switching that is a repository setting, not something in this tree.
+- **Pages must be served by Actions, not from a branch folder.** Publishing from `main:/docs` was `build_type: legacy` in the Pages API; five 4 MB images have no business in git, and the page is now a built artefact rather than a checked-in file. Switching that was a repository setting, not something in this tree.
 - **A release now costs a Pages deploy**, so the site is redeployed per release rather than never. `pages.yml` triggers on `workflow_run` after *Release* rather than on the `release` event, because *Release* itself triggers on `created` and the two would race — the manifest would be built before `publish` had uploaded anything.
 - **The page no longer calls the GitHub API**, which also removes an unauthenticated 60-requests-per-hour-per-IP rate limit from the path a first-time user walks.
 
@@ -217,5 +247,6 @@ The consequences are worth stating, because they overturn what the page was desi
 
 - `src/external/microdot/__init__.py` imports `TestClient`, so `test_client.mpy` (~3.7 KB) is loaded into RAM at boot. **Measured and settled: not worth fixing.** A C6 running this firmware reports `gc.mem_free() == 321504`, so the module costs about 1 % of free RAM — and having `TestClient` on the device turned out to be useful, since it exercises the HTTP routes over the REPL without a network.
 - `mqtt_v5_properties.mpy` (~1.8 KB) ships but is only imported lazily when MQTT v5 is enabled, which it is not. It costs flash, not RAM — deliberately left alone.
-- `noUncheckedIndexedAccess` is off in the web-UI tsconfig. Several places index records without guarding; enabling it would be a real tightening but touches a lot.
+- `noUncheckedIndexedAccess` is off in the device UI's tsconfig. Several places index records without guarding; enabling it would be a real tightening but touches a lot. It *is* on in the installer, which indexes nothing unchecked.
 - TypeScript is held at 5.x by `typescript-eslint` (see the Web UI section).
+- **`cryptography` sits on 48.0.1 with a dismissed high-severity advisory** ([GHSA-g6cj-pr64-35w5](https://github.com/advisories/GHSA-g6cj-pr64-35w5), a Bleichenbacher oracle in PKCS#7 `EnvelopedData` *decryption*). Dismissed as `not_used`, and that is the honest reason rather than a shrug: the package is transitive via `esptool`, which uses it to sign and hash images and never decrypts PKCS#7 — and esptool runs on a developer machine or a CI runner while building and flashing, never on the device. It also cannot currently be fixed: the patch is 50.0.0, while esptool 5.3.1 (the latest) requires `cryptography<49.0.0` on Darwin x86_64, so uv's cross-platform resolution cannot go past 48.x. An `override-dependencies` entry would force it at the cost of Intel Mac builds. Revisit when esptool relaxes that pin — and if the advisory ever covers signing or hashing, this reasoning no longer holds.

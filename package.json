@@ -1,13 +1,20 @@
 {
-  "name": "tank-buddy-release",
+  "name": "tank-buddy",
   "private": true,
-  "description": "Release tooling only. The web UI is its own project under web-ui/, and nothing here ships to the device.",
+  "description": "Workspace root: release tooling only. The packages live in web-ui/ (ships to the device) and installer/ (ships to GitHub Pages); nothing declared here reaches either.",
   "packageManager": "pnpm@11.22.0",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
   "devDependencies": {
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/exec": "^7.1.0",
     "@semantic-release/github": "^12.0.9",
     "@semantic-release/release-notes-generator": "^14.1.1",
+    "@tank-buddy/prettier-config": "workspace:*",
+    "prettier": "catalog:",
     "semantic-release": "^25.0.9"
-  }
+  },
+  "prettier": "@tank-buddy/prettier-config"
 }

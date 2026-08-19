@@ -1,0 +1,17 @@
+{
+  "name": "@tank-buddy/eslint-config",
+  "private": true,
+  "type": "module",
+  "description": "The lint rules both front-end packages share. Not published; consumed through the workspace.",
+  "exports": {
+    ".": "./index.js"
+  },
+  "dependencies": {
+    "@eslint/js": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "typescript-eslint": "catalog:"
+  },
+  "peerDependencies": {
+    "eslint": "catalog:"
+  }
+}

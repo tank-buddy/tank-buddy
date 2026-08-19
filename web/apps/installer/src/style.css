@@ -1,0 +1,52 @@
+@import 'tailwindcss';
+
+/*
+ * The same palette the device interface is built from. This page has no theme
+ * toggle and never sets `data-theme`, so it picks up the `prefers-color-scheme`
+ * half of that file and follows the system.
+ */
+@import '@tank-buddy/tailwind-config/palette.css';
+/*
+ * Tailwind v4 discovers classes by scanning the project, and it deliberately
+ * skips node_modules -- where @tank-buddy/ui is symlinked from. Without this the
+ * utilities used inside Card and Row are simply absent from the output and the
+ * grouped lists lose their padding, radius and hairlines, with no error anywhere.
+ */
+@source '../../../packages/ui/src';
+
+@layer base {
+  html {
+    /* Stops iOS from inflating type when the phone is turned to landscape. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--surface-sunken);
+    color: var(--label);
+  }
+}
+
+/*
+ * esp-web-install-button renders a shadow root we do not control; these two
+ * custom properties are the styling hooks it documents. White on --brand is
+ * 2.6:1, so the label uses --accent.
+ *
+ * No `display: none` here any more. It used to start hidden with JavaScript
+ * revealing it once the manifest had loaded -- but App.tsx now decides whether
+ * the element exists at all, and leaving the rule in place hid the button even
+ * when it was rendered. Same guarantee, one mechanism.
+ */
+esp-web-install-button {
+  /*
+   * Matched to the device interface's primary button: filled with --accent and
+   * white on top, at the same 12px radius. The three custom properties are all
+   * esp-web-tools exposes -- its shadow root sets the size and weight itself, so
+   * this is as close as the two can get without reaching inside it.
+   *
+   * --accent rather than --brand because the label is white: white on the brand
+   * teal is 2.6:1, on this 4.9:1.
+   */
+  --esp-tools-button-color: var(--accent);
+  --esp-tools-button-text-color: #ffffff;
+  --esp-tools-button-border-radius: 0.75rem;
+}

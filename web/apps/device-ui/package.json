@@ -1,0 +1,57 @@
+{
+  "name": "@tank-buddy/device-ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "dependencies": {
+    "@tank-buddy/tailwind-config": "workspace:*",
+    "@tank-buddy/ui": "workspace:*",
+    "preact": "catalog:",
+    "tailwindcss": "catalog:"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@preact/preset-vite": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@tank-buddy/eslint-config": "workspace:*",
+    "@tank-buddy/prettier-config": "workspace:*",
+    "@tank-buddy/typescript-config": "workspace:*",
+    "@tank-buddy/vite-config": "workspace:*",
+    "@vitest/browser-playwright": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.10",
+    "browserslist": "^4.28.8",
+    "eslint": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "lightningcss": "^1.33.0",
+    "msw": "^2.15.0",
+    "playwright": "^1.62.1",
+    "prettier": "catalog:",
+    "rollup-plugin-visualizer": "^7.0.1",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-compression2": "^2.5.3",
+    "vitest": "^4.1.10",
+    "vitest-browser-preact": "^1.0.0"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}

@@ -5,12 +5,12 @@ MPY_CROSS=uv run mpy-cross-v6
 MPREMOTE=uv run mpremote
 ESPTOOL=uv run esptool
 BASE_PATH ?= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-WEB_UI_DIRECTORY=web-ui
-WEB_UI_PATH=$(BASE_PATH)/$(WEB_UI_DIRECTORY)
+# The workspace root; pnpm --filter targets a package from anywhere inside it.
+DEVICE_UI_DIRECTORY=web/apps/device-ui
 
 # Every target is a command, not a file. Without this, `clean`, `build` and
 # `dist` would be shadowed by the dist/ directory they operate on.
-.PHONY: clean build-web-ui build-core build \
+.PHONY: clean build-web-ui build-installer build-core build \
         stubs lint format typecheck test check \
         web-ui-lint web-ui-test web-ui-check check-all \
         vendor vendor-check \
@@ -21,7 +21,8 @@ clean:
 	rm -Rf dist
 
 build-web-ui:
-	cd $(WEB_UI_PATH); pnpm install --frozen-lockfile; pnpm build
+	pnpm install --frozen-lockfile
+	pnpm --filter @tank-buddy/device-ui build
 
 # settings.json is deliberately NOT bundled: the device owns its runtime
 # settings (the web UI writes them), so a flash must not silently roll them
@@ -37,7 +38,11 @@ build-core:
 	find dist -name '__pycache__' -type d -prune -exec rm -rf {} +
 	find dist \( -name '.DS_Store' -o -name '*.pyc' \) -delete
 	mkdir -p dist/www
-	cp -a ./$(WEB_UI_DIRECTORY)/dist/. ./dist/www/
+	cp -a ./$(DEVICE_UI_DIRECTORY)/dist/. ./dist/www/
+
+build-installer:
+	pnpm install --frozen-lockfile
+	pnpm --filter @tank-buddy/installer build
 
 build: clean build-web-ui build-core
 
@@ -89,10 +94,12 @@ run-on-device: upload
 # Web UI: same commands CI runs, so a local `make check-all` matches the
 # pipeline without a container in between.
 web-ui-lint:
-	cd $(WEB_UI_PATH); pnpm run format:check; pnpm run lint; pnpm run typecheck
+	pnpm run format:check
+	pnpm -r run lint
+	pnpm -r run typecheck
 
 web-ui-test:
-	cd $(WEB_UI_PATH); pnpm run test
+	pnpm --filter @tank-buddy/device-ui test
 
 web-ui-check: web-ui-lint web-ui-test
 
@@ -120,6 +127,6 @@ VFS_OFFSET=0x200000
 flash-image: build-web-ui
 	@test -n "$(FIRMWARE)" || (echo "set FIRMWARE=<path to firmware.bin>" && false)
 	mkdir -p dist
-	uv run python tools/build_littlefs_image.py $(WEB_UI_DIRECTORY)/dist dist/littlefs.bin
+	uv run python tools/build_littlefs_image.py $(DEVICE_UI_DIRECTORY)/dist dist/littlefs.bin
 	$(ESPTOOL) --chip $(CHIP) merge-bin -o dist/tank-buddy-$(BOARD).bin \
 		--flash-size 4MB 0x0 $(FIRMWARE) $(VFS_OFFSET) dist/littlefs.bin

@@ -8,8 +8,9 @@ name: Pages
 # release-assets.githubusercontent.com it redirects to sends no CORS headers
 # either. So a release costs a Pages deploy, and the images are copied here.
 #
-# This also means Pages has to be served by Actions rather than from the docs/
-# folder on a branch -- the images are 4 MB each and have no business in git.
+# This also means Pages has to be served by Actions rather than from a folder on
+# a branch -- the images are 4 MB each and have no business in git, and the page
+# itself is now a built artefact rather than a checked-in file.
 on:
   # Called by the release workflow as its last step, rather than triggered by
   # it: Release now runs on every push to main and only sometimes publishes, so
@@ -19,7 +20,10 @@ on:
   push:
     branches: [main]
     paths:
-      - docs/**
+      - web/apps/installer/**
+      - web/packages/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
       - tools/build_pages_manifest.py
       - .github/workflows/pages.yml
   workflow_dispatch:
@@ -55,10 +59,28 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --locked
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install web dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The page bundles esp-web-tools rather than pulling it from a CDN while
+      # flashing; see web/apps/installer/src/main.tsx for why that matters.
+      - name: Build the installer
+        run: pnpm --filter @tank-buddy/installer build
+
       - name: Assemble the site
         run: |
           mkdir -p _site
-          cp -R docs/. _site/
+          cp -R web/apps/installer/dist/. _site/
 
       # Only the whole-chip images: the firmware-only build carries no
       # filesystem, and a first install from it would serve nothing.

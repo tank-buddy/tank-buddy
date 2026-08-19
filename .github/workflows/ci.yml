@@ -52,13 +52,10 @@ jobs:
       - name: Test
         run: make test
 
-  web-ui:
-    name: Lint, test and build (web UI)
+  web:
+    name: Lint, test and build (web)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: web-ui
 
     steps:
       - name: Checkout code
@@ -66,13 +63,6 @@ jobs:
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
-        with:
-          # `defaults.run.working-directory` above applies to `run:` steps only,
-          # never to `uses:` steps, so without this the action reads the root
-          # package.json. That one exists now -- it carries the release tooling --
-          # and happens to pin the same pnpm version, but this job should not
-          # depend on the two agreeing.
-          package_json_file: web-ui/package.json
 
       - name: Set up Node
         uses: actions/setup-node@v7
@@ -81,16 +71,26 @@ jobs:
           # float onto whatever Node is newest.
           node-version: 24
           cache: pnpm
-          cache-dependency-path: web-ui/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       # Browser-mode tests need a real Chromium; the download is the slow part,
       # so it is cached on the resolved Playwright version.
+      #
+      # `--filter` is load-bearing in both steps below. Playwright belongs to the
+      # device UI, not to the workspace root, so a bare `pnpm ls` reports the root
+      # package as `.[0]` -- which has no playwright -- and yields `null`. That
+      # produced an empty cache key, a guaranteed miss, and then a `pnpm exec`
+      # that could not resolve playwright at all.
       - name: Resolve Playwright version
         id: playwright
-        run: echo "version=$(pnpm ls playwright --json | jq -r '.[0].devDependencies.playwright.version')" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(pnpm --filter @tank-buddy/device-ui ls playwright --json \
+            | jq -r '.[0].devDependencies.playwright.version')
+          test -n "$version" && test "$version" != null
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
         uses: actions/cache@v6
@@ -110,22 +110,33 @@ jobs:
       # the browser tests fail immediately and say which -- better than that.
       - name: Install Chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: >-
+          pnpm --filter @tank-buddy/device-ui exec
+          playwright install --with-deps chromium
 
+      # One formatting pass for the whole workspace: one Prettier config, shared
+      # from web/packages/prettier-config.
       - name: Format check
         run: pnpm run format:check
 
+      # `-r` covers both apps. The config packages have no scripts and are
+      # skipped, but a third app would be picked up without touching this file.
       - name: Lint
-        run: pnpm run lint
+        run: pnpm -r run lint
 
       - name: Typecheck
-        run: pnpm run typecheck
+        run: pnpm -r run typecheck
 
+      # Only the device UI has tests; the installer is a static page whose one
+      # behaviour (fetch the manifest, reveal the button) needs a browser and a
+      # board to mean anything.
       - name: Test
-        run: pnpm run test
+        run: pnpm --filter @tank-buddy/device-ui test
 
+      # Both, because a broken installer build should fail here rather than
+      # during a release.
       - name: Build
-        run: pnpm run build
+        run: pnpm -r run build
 
   firmware:
     name: Build firmware (${{ matrix.board }})
@@ -230,7 +241,7 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
-    needs: [core, web-ui, firmware]
+    needs: [core, web, firmware]
     if: always()
 
     steps:
@@ -238,6 +249,6 @@ jobs:
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |
           echo "core=${{ needs.core.result }}"
-          echo "web-ui=${{ needs['web-ui'].result }}"
+          echo "web=${{ needs.web.result }}"
           echo "firmware=${{ needs.firmware.result }}"
           exit 1
