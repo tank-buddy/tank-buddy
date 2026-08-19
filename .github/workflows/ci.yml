@@ -78,9 +78,19 @@ jobs:
 
       # Browser-mode tests need a real Chromium; the download is the slow part,
       # so it is cached on the resolved Playwright version.
+      #
+      # `--filter` is load-bearing in both steps below. Playwright belongs to the
+      # device UI, not to the workspace root, so a bare `pnpm ls` reports the root
+      # package as `.[0]` -- which has no playwright -- and yields `null`. That
+      # produced an empty cache key, a guaranteed miss, and then a `pnpm exec`
+      # that could not resolve playwright at all.
       - name: Resolve Playwright version
         id: playwright
-        run: echo "version=$(pnpm ls playwright --json | jq -r '.[0].devDependencies.playwright.version')" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(pnpm --filter @tank-buddy/device-ui ls playwright --json \
+            | jq -r '.[0].devDependencies.playwright.version')
+          test -n "$version" && test "$version" != null
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
         uses: actions/cache@v6
@@ -100,7 +110,9 @@ jobs:
       # the browser tests fail immediately and say which -- better than that.
       - name: Install Chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: >-
+          pnpm --filter @tank-buddy/device-ui exec
+          playwright install --with-deps chromium
 
       # One formatting pass for the whole workspace: one Prettier config, shared
       # from web/packages/prettier-config.

@@ -130,8 +130,13 @@ jobs:
       - name: Install web dependencies
         run: pnpm install --frozen-lockfile
 
+      # --filter because playwright belongs to the device UI, not to the
+      # workspace root; a bare `pnpm exec` cannot resolve it. Same trap as in
+      # ci.yml, which is where it actually bit.
       - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: >-
+          pnpm --filter @tank-buddy/device-ui exec
+          playwright install --with-deps chromium
 
       - name: Lint, typecheck and test everything
         run: make check-all
