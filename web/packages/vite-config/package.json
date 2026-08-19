@@ -1,0 +1,16 @@
+{
+  "name": "@tank-buddy/vite-config",
+  "private": true,
+  "type": "module",
+  "description": "The plugin base both apps build on. Not published; consumed through the workspace.",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@preact/preset-vite": "catalog:",
+    "@tailwindcss/vite": "catalog:"
+  },
+  "peerDependencies": {
+    "vite": "catalog:"
+  }
+}

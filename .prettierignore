@@ -1,0 +1,16 @@
+dist
+node_modules
+coverage
+pnpm-lock.yaml
+stats.html
+
+# Written by `msw init`, not by us, and deleted from the build again by
+# excludeMockWorker in the device UI vite config.
+web/apps/device-ui/public/mockServiceWorker.js
+
+# Prose and workflows are out of scope. Prettier ran only inside web-ui/ before
+# this became a workspace, so nothing here was ever formatted by it -- and
+# reflowing CLAUDE.md to 80 columns would make every later edit move whole
+# paragraphs in the diff. actionlint is the authority on the workflows.
+*.md
+.github/

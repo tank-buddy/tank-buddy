@@ -1,0 +1,13 @@
+{
+  "name": "@tank-buddy/prettier-config",
+  "private": true,
+  "type": "module",
+  "description": "Formatting for every package here. Not published; consumed through the workspace.",
+  "main": "index.js",
+  "dependencies": {
+    "prettier-plugin-organize-imports": "catalog:"
+  },
+  "peerDependencies": {
+    "prettier": "catalog:"
+  }
+}

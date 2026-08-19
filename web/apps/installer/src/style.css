@@ -1,0 +1,34 @@
+@import 'tailwindcss';
+
+/*
+ * The same palette the device interface is built from. This page has no theme
+ * toggle and never sets `data-theme`, so it picks up the `prefers-color-scheme`
+ * half of that file and follows the system.
+ */
+@import '@tank-buddy/tailwind-config/palette.css';
+
+@layer base {
+  html {
+    /* Stops iOS from inflating type when the phone is turned to landscape. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--surface-sunken);
+    color: var(--label);
+  }
+}
+
+/*
+ * esp-web-install-button renders a shadow root we do not control; these two
+ * custom properties are the styling hooks it documents. White on --brand is
+ * 2.6:1, so the label uses --accent.
+ *
+ * It starts hidden and main.ts reveals it once the manifest has loaded: a
+ * Connect button that cannot reach an image is worse than no button at all.
+ */
+esp-web-install-button {
+  --esp-tools-button-color: var(--surface);
+  --esp-tools-button-text-color: var(--accent);
+  display: none;
+}

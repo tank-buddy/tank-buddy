@@ -1,0 +1,11 @@
+{
+  "name": "@tank-buddy/tailwind-config",
+  "private": true,
+  "description": "The iOS palette both pages are built from, as Tailwind theme tokens. Not published; consumed through the workspace.",
+  "exports": {
+    "./palette.css": "./palette.css"
+  },
+  "peerDependencies": {
+    "tailwindcss": "catalog:"
+  }
+}

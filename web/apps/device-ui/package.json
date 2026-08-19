@@ -1,5 +1,5 @@
 {
-  "name": "tank-buddy-preact",
+  "name": "@tank-buddy/device-ui",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,8 +10,6 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
@@ -19,30 +17,33 @@
   "engines": {
     "node": ">=22.12"
   },
-  "packageManager": "pnpm@11.22.0",
   "dependencies": {
-    "preact": "^10.29.8",
-    "tailwindcss": "^4.3.3"
+    "@tank-buddy/tailwind-config": "workspace:*",
+    "preact": "catalog:",
+    "tailwindcss": "catalog:"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@preact/preset-vite": "^2.10.6",
-    "@tailwindcss/vite": "^4.3.3",
+    "@eslint/js": "catalog:",
+    "@preact/preset-vite": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@tank-buddy/eslint-config": "workspace:*",
+    "@tank-buddy/prettier-config": "workspace:*",
+    "@tank-buddy/typescript-config": "workspace:*",
+    "@tank-buddy/vite-config": "workspace:*",
     "@vitest/browser-playwright": "^4.1.10",
     "@vitest/coverage-v8": "^4.1.10",
     "browserslist": "^4.28.8",
-    "eslint": "^10.8.1",
-    "eslint-config-prettier": "^10.1.8",
+    "eslint": "catalog:",
+    "eslint-config-prettier": "catalog:",
     "eslint-plugin-react-hooks": "^7.1.1",
     "lightningcss": "^1.33.0",
     "msw": "^2.15.0",
     "playwright": "^1.62.1",
-    "prettier": "^3.9.6",
-    "prettier-plugin-organize-imports": "^4.3.0",
+    "prettier": "catalog:",
     "rollup-plugin-visualizer": "^7.0.1",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "^8.67.0",
-    "vite": "^8.2.1",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vite": "catalog:",
     "vite-plugin-compression2": "^2.5.3",
     "vitest": "^4.1.10",
     "vitest-browser-preact": "^1.0.0"

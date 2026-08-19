@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="web-ui/public/tank-buddy.svg" width="110" alt="">
+  <img src="web/apps/installer/public/tank-buddy.svg" width="110" alt="">
 </p>
 
 <h1 align="center">Tank Buddy</h1>
@@ -52,7 +52,7 @@ esptool --port PORT write-flash 0x0 tank-buddy-TANKBUDDY_C6-full.bin
 3. Set your Wi-Fi, the tank height, the minimum sensor distance and **which pins the sensor is wired to** — the defaults (SCL 1, SDA 0) suit the C6 and will not suit every board.
 4. Save, then press **Restart now** in the notice that appears — Wi-Fi settings only take effect after a restart. The device is then reachable at <http://tank-buddy.local>.
 
-If a device answers with "no web interface is installed yet", it was flashed with firmware alone. Install the interface from the settings page of another device, or push it with `mpremote fs cp -r web-ui/dist/. :www/`.
+If a device answers with "no web interface is installed yet", it was flashed with firmware alone. Install the interface from the settings page of another device, or push it with `mpremote fs cp -r web/apps/device-ui/dist/. :www/`.
 
 ### When the power comes back
 
@@ -131,7 +131,7 @@ make upload
 
 Firmware itself is built in CI, out of tree, from the definitions in [`boards/`](boards/README.md) — MicroPython v1.28.0 on ESP-IDF v5.5.1. `make flash-image` takes one of those `firmware.bin` files and merges it with a LittleFS image of the web UI, which is what makes a single write at `0x0` produce a complete device.
 
-Web UI, from `web-ui/`: `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm test`.
+Web, from anywhere in the repo: `pnpm --filter @tank-buddy/device-ui dev`, `… build`, `… test`; `pnpm --filter @tank-buddy/installer dev` for the installer page.
 
 `pnpm dev` needs no second process — [MSW](https://mswjs.io/) mocks the device API in the browser. The same handlers back the test suite, which runs in a real headless Chromium via Vitest's browser mode (`pnpm exec playwright install chromium` once).
 
@@ -154,20 +154,18 @@ There is deliberately no target that pulls "latest": this code runs on a device 
 ## File structure
 
 ```
-src/              MicroPython backend (sensor logic, HTTP API, MQTT, settings)
-src/external/     Vendored upstream code (Microdot, VL53L0X, mqtt_as)
-vendor.toml       Pins those copies to exact upstream refs
-tests/            pytest suite, runs on CPython with device modules faked
-tools/            Build helpers (flash image, update bundle) and device scripts
-web-ui/src/       Preact frontend, built into gzip-only static files
-web-ui/mocks/     MSW handlers — one definition for dev server and tests
-web-ui/tests/     Vitest browser-mode suite (real Chromium)
-manifest.py       Freezes src/ into a custom firmware image
-boards/           Board definitions, one per supported chip
-docs/             The browser installer, deployed to GitHub Pages by Actions
-                  together with the release's flash images (see CLAUDE.md)
-release.config.mjs  semantic-release: versions come from the commit messages
-package.json      Release tooling only — nothing here ships to the device
+src/                   MicroPython backend (sensor logic, HTTP API, MQTT, settings)
+src/external/          Vendored upstream code (Microdot, VL53L0X, mqtt_as)
+vendor.toml            Pins those copies to exact upstream refs
+tests/                 pytest suite, runs on CPython with device modules faked
+tools/                 Build helpers (flash image, update bundle) and device scripts
+web/apps/device-ui/    Preact frontend flashed onto the device (gzip-only)
+web/apps/installer/    The GitHub Pages page that flashes a board over Web Serial
+web/packages/          Shared config: eslint, prettier, tailwind, typescript, vite
+manifest.py            Freezes src/ into a custom firmware image
+boards/                Board definitions, one per supported chip
+release.config.mjs     semantic-release: versions come from the commit messages
+package.json           Workspace root: release tooling, one lockfile for web/
 ```
 
 Versions are not chosen by hand. A `fix:` on `main` becomes a patch release, a `feat:` a minor one, and `build(deps):` becomes nothing at all — see the release section in [CLAUDE.md](CLAUDE.md).

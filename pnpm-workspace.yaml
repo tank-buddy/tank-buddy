@@ -1,0 +1,71 @@
+# One workspace, one lockfile. web/apps/ui and web/apps/installer are separate
+# packages rather than one project with two entry points, and that separation is
+# load-bearing: installer/ depends on esp-web-tools, whose lazily-loaded flash
+# dialog alone is 311 kB, while the whole device bundle is 23 kB. pnpm resolves
+# each package against its own dependencies, so the interface cannot import
+# esp-web-tools without declaring it -- no lint rule needed.
+#
+# That guarantee ends the moment anyone sets node-linker=hoisted or
+# shamefully-hoist. Do not.
+packages:
+  - web/apps/*
+  - web/packages/*
+
+# The toolchain both packages build with, declared once. A lockfile already
+# stops versions drifting apart at install time; a catalog stops them being
+# *declared* apart, which is what actually happens when two package.json files
+# are edited months apart. It also gives each version one place to be explained.
+#
+# Only genuinely shared entries belong here. Vitest, MSW and Playwright stay in
+# web/apps/device-ui: the installer has no component tests and no service worker.
+#
+# Dependabot has supported catalogs since February 2025, with rough edges
+# (dependabot-core #11953, #14339). If an update for one of these stops
+# arriving, that is where to look -- a missing bump is visible, not silent.
+catalog:
+  # Held at 5.x on purpose. `latest` is 7.x (the Go port), but typescript-eslint
+  # caps below 6.1 even in its canary, and ESLint wins. Revisit when
+  # typescript-eslint catches up. This note used to live in web-ui only; with a
+  # second package it would have had to be repeated or, more likely, forgotten.
+  typescript: ~5.9.3
+
+  '@eslint/js': ^10.0.1
+  # Both pages are styled from the same iOS palette, so the engine that turns it
+  # into utilities has to be one version.
+  '@preact/preset-vite': ^2.10.6
+  '@tailwindcss/vite': ^4.3.3
+  tailwindcss: ^4.3.3
+  eslint: ^10.8.1
+  # Must stay last in eslint.config.js -- it turns off what Prettier owns.
+  eslint-config-prettier: ^10.1.8
+  prettier: ^3.9.6
+  # Import sorting is Prettier's job here, not an ESLint rule.
+  prettier-plugin-organize-imports: ^4.3.0
+  preact: ^10.29.8
+  typescript-eslint: ^8.67.0
+  vite: ^8.2.1
+
+# pnpm refuses to run a dependency's build script until it has been decided on,
+# and a fresh `pnpm install` exits non-zero while any decision is missing --
+# which is invisible locally, because an existing node_modules makes pnpm skip
+# the step entirely. It only surfaces on a clean checkout, i.e. in CI.
+#
+# This is `allowBuilds`, not the older `onlyBuiltDependencies`: pnpm 11 no
+# longer treats that list as a decision, so entries there were silently ignored
+# and the build still counted as unapproved.
+#
+# msw's postinstall keeps public/mockServiceWorker.js in step with the installed
+# version; @tailwindcss/oxide and esbuild ship native binaries.
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true
+  msw: true
+
+peerDependencyRules:
+  # @preact/preset-vite pulls in vite-prerender-plugin, which still declares
+  # vite 5-7. It instantiates the plugin unconditionally (even with
+  # prerender.enabled false), so this is not strictly inert -- but the Vite 8
+  # build was verified to work end to end, including the load-bearing
+  # gzip-only output. Re-check when bumping Vite.
+  allowedVersions:
+    vite-prerender-plugin>vite: '8'

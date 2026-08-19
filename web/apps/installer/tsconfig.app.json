@@ -1,0 +1,12 @@
+{
+  "extends": "@tank-buddy/typescript-config/app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    /* On here, unlike device-ui, where it is a known gap: this app indexes
+       nothing without checking, so there is nothing to tighten later. */
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["src"]
+}

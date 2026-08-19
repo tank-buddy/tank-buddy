@@ -1,0 +1,61 @@
+@import 'tailwindcss';
+
+/*
+ * Manual theme switching instead of Tailwind's default `dark:` variant, which
+ * is hard-wired to `prefers-color-scheme` and therefore cannot be overridden by
+ * a toggle. The attribute is written by the inline script in index.html before
+ * first paint and by src/utils/theme afterwards.
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+ * The palette lives in config/theme, so the installer page is built from the
+ * same values. It defines them on plain selectors and lifts them into Tailwind
+ * with `@theme inline`, which is why components here write `bg-surface
+ * text-label` with no `dark:` counterpart -- the class of bug the Alert
+ * component's TONES map was written to work around cannot occur.
+ */
+@import '@tank-buddy/tailwind-config/palette.css';
+
+@theme inline {
+  /* Apple's switch knob: a wide soft shadow plus a tight contact shadow. */
+  --shadow-knob:
+    0 3px 8px rgba(0, 0, 0, 0.15), 0 3px 1px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+
+  --animate-wave: wave 9s linear infinite;
+}
+
+/*
+ * The wave SVG is rendered twice as wide as its box with the pattern repeated,
+ * so translating by half its width loops seamlessly.
+ */
+@keyframes wave {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* The action sheet slides in from the bottom edge, the way iOS presents one. */
+@keyframes sheet-up {
+  from {
+    transform: translateY(1.5rem);
+    opacity: 0;
+  }
+}
+
+@layer base {
+  html {
+    /* Stops iOS from inflating type when the phone is turned to landscape. */
+    -webkit-text-size-adjust: 100%;
+    /* Removes the 300 ms double-tap-to-zoom delay on every tap target. */
+    touch-action: manipulation;
+  }
+
+  body {
+    background-color: var(--surface-sunken);
+    color: var(--label);
+    /* The components draw their own pressed states. */
+    -webkit-tap-highlight-color: transparent;
+  }
+}

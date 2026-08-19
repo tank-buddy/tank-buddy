@@ -1,24 +1,25 @@
-@import 'tailwindcss';
-
 /*
- * Manual theme switching instead of Tailwind's default `dark:` variant, which
- * is hard-wired to `prefers-color-scheme` and therefore cannot be overridden by
- * a toggle. The attribute is written by the inline script in index.html before
- * first paint and by src/utils/theme afterwards.
- */
-@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
-
-/*
- * Two layers on purpose: the raw values live on plain selectors so a single
- * attribute flip re-themes the whole page, and `@theme inline` below turns them
- * into Tailwind utilities that reference the variable rather than copying its
- * value. The pay-off is that components write `bg-surface text-label` with no
- * `dark:` counterpart at all -- the class of bug the Alert component's TONES map
- * was written to work around cannot occur any more.
+ * The iOS palette, shared by the device interface and the installer page.
  *
- * Greys, separators and the destructive red are Apple's system colours; the
- * teal is the exact value from tank-buddy.svg.
+ * Greys, separators and the status colours are Apple's system colours; the teal
+ * is the exact value from tank-buddy.svg.
+ *
+ * Three selectors, because the two consumers theme differently and both have to
+ * work from one set of values:
+ *
+ *   :root                                  the light palette
+ *   @media dark + :root:not([data-theme='light'])   follows the system
+ *   [data-theme='dark']                    an explicit choice wins
+ *
+ * web-ui writes `data-theme` before first paint and offers a toggle, so the
+ * attribute rules are what it uses. The installer has no toggle and never sets
+ * the attribute, so it gets the media query. Neither can see the other's
+ * mechanism misbehave, and the values exist once.
+ *
+ * Add a colour in three places: both dark blocks and the `@theme inline` map at
+ * the end. Never as a raw hex in markup.
  */
+
 :root {
   color-scheme: light;
 
@@ -58,6 +59,36 @@
   --warning: #ff9500;
 }
 
+/* System preference, unless a page has explicitly chosen light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --brand: #09aba7;
+    --brand-deep: #045755;
+    --brand-ink: #2ed3ce;
+
+    --surface: #1c1c1e;
+    --surface-sunken: #000000;
+    --surface-elevated: #2c2c2e;
+
+    --separator: rgba(84, 84, 88, 0.65);
+    --fill: rgba(120, 120, 128, 0.24);
+    --track: #39393d;
+    /* systemGray2 (dark): clearly lighter than --fill over --surface. */
+    --segment: #636366;
+
+    --label: #ffffff;
+    --label-secondary: rgba(235, 235, 245, 0.6);
+    --label-tertiary: rgba(235, 235, 245, 0.3);
+
+    --destructive: #ff453a;
+    --success: #30d158;
+    --warning: #ff9f0a;
+  }
+}
+
+/* An explicit choice, written by web-ui's toggle. Wins over the query above. */
 [data-theme='dark'] {
   color-scheme: dark;
 
@@ -72,7 +103,6 @@
   --separator: rgba(84, 84, 88, 0.65);
   --fill: rgba(120, 120, 128, 0.24);
   --track: #39393d;
-  /* systemGray2 (dark): clearly lighter than --fill over --surface. */
   --segment: #636366;
 
   --label: #ffffff;
@@ -114,45 +144,4 @@
   --color-destructive: var(--destructive);
   --color-success: var(--success);
   --color-warning: var(--warning);
-
-  /* Apple's switch knob: a wide soft shadow plus a tight contact shadow. */
-  --shadow-knob:
-    0 3px 8px rgba(0, 0, 0, 0.15), 0 3px 1px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(0, 0, 0, 0.04);
-
-  --animate-wave: wave 9s linear infinite;
-}
-
-/*
- * The wave SVG is rendered twice as wide as its box with the pattern repeated,
- * so translating by half its width loops seamlessly.
- */
-@keyframes wave {
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-/* The action sheet slides in from the bottom edge, the way iOS presents one. */
-@keyframes sheet-up {
-  from {
-    transform: translateY(1.5rem);
-    opacity: 0;
-  }
-}
-
-@layer base {
-  html {
-    /* Stops iOS from inflating type when the phone is turned to landscape. */
-    -webkit-text-size-adjust: 100%;
-    /* Removes the 300 ms double-tap-to-zoom delay on every tap target. */
-    touch-action: manipulation;
-  }
-
-  body {
-    background-color: var(--surface-sunken);
-    color: var(--label);
-    /* The components draw their own pressed states. */
-    -webkit-tap-highlight-color: transparent;
-  }
 }

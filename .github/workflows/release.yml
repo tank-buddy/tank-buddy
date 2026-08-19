@@ -119,26 +119,19 @@ jobs:
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
-        with:
-          # Without this the action reads the root package.json, which is the
-          # release tooling rather than this job's project. It pins the same pnpm
-          # version today; pointing here does not rely on that staying true.
-          package_json_file: web-ui/package.json
 
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: web-ui/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install web UI dependencies
+      - name: Install web dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: web-ui
 
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
-        working-directory: web-ui
 
       - name: Lint, typecheck and test everything
         run: make check-all
@@ -156,7 +149,7 @@ jobs:
       - name: Pack the update bundle
         run: |
           uv run python tools/build_web_ui_bundle.py \
-            web-ui/dist "${{ needs.version.outputs.tag }}" \
+            web/apps/device-ui/dist "${{ needs.version.outputs.tag }}" \
             release-assets/web-ui.json
 
       # Everything the device serves from its filesystem -- the same tree a
@@ -177,7 +170,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: web-ui-dist
-          path: web-ui/dist
+          path: web/apps/device-ui/dist
           retention-days: 1
 
   firmware:

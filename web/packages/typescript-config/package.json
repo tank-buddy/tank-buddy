@@ -1,0 +1,9 @@
+{
+  "name": "@tank-buddy/typescript-config",
+  "private": true,
+  "description": "Compiler settings both apps extend. Not published; consumed through the workspace.",
+  "exports": {
+    "./app.json": "./app.json",
+    "./node.json": "./node.json"
+  }
+}
