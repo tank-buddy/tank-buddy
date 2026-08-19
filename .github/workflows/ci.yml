@@ -9,6 +9,13 @@ on:
 permissions:
   contents: read
 
+# One run per pull request. Pushing again supersedes the previous run rather than
+# racing it, which also means a hung run stops costing minutes the moment the
+# next commit arrives -- there is no point in the old one finishing.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   MICROPYTHON_VERSION: v1.28.0
 
@@ -16,6 +23,10 @@ jobs:
   core:
     name: Lint, typecheck and test (Python)
     runs-on: ubuntu-latest
+    # The default is 360 minutes. Nothing here takes more than a couple, so a job
+    # sitting for a quarter of an hour is stuck, not slow -- and should say so
+    # rather than hold a required check open for six hours.
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -44,6 +55,7 @@ jobs:
   web-ui:
     name: Lint, test and build (web UI)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web-ui
@@ -56,9 +68,10 @@ jobs:
         uses: pnpm/action-setup@v6
         with:
           # `defaults.run.working-directory` above applies to `run:` steps only,
-          # never to `uses:` steps, so the action looks for a package.json in the
-          # repo root -- where there is none. Point it at the single place the
-          # pnpm version is pinned instead of duplicating the version here.
+          # never to `uses:` steps, so without this the action reads the root
+          # package.json. That one exists now -- it carries the release tooling --
+          # and happens to pin the same pnpm version, but this job should not
+          # depend on the two agreeing.
           package_json_file: web-ui/package.json
 
       - name: Set up Node
@@ -86,13 +99,18 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
 
+      # No `install-deps` companion for the cache-hit path. There used to be one,
+      # on the assumption that a cache hit skips the system libraries -- but the
+      # cache holds ~/.cache/ms-playwright, i.e. browser binaries, while the
+      # libraries come from the runner image, which ships google-chrome-stable
+      # and therefore all of them already. So it was a no-op that ran apt-get,
+      # and the first time it ever executed (the cache was cold until then) an
+      # unreachable azure.archive.ubuntu.com mirror made it retry into long
+      # timeouts and hang for 20 minutes. If a library really is missing one day,
+      # the browser tests fail immediately and say which -- better than that.
       - name: Install Chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
-
-      - name: Install Chromium system deps
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
 
       - name: Format check
         run: pnpm run format:check
@@ -112,6 +130,9 @@ jobs:
   firmware:
     name: Build firmware (${{ matrix.board }})
     runs-on: ubuntu-latest
+    # Higher than the others: a cold cache means cloning MicroPython with
+    # submodules and compiling mpy-cross before the firmware itself.
+    timeout-minutes: 45
     strategy:
       # One board failing to fit or compile is worth knowing about for all of
       # them, so the matrix runs to completion.
