@@ -27,7 +27,7 @@ catalog:
   # caps below 6.1 even in its canary, and ESLint wins. Revisit when
   # typescript-eslint catches up. This note used to live in web-ui only; with a
   # second package it would have had to be repeated or, more likely, forgotten.
-  typescript: ~5.9.3
+  typescript: ~7.0.2
 
   '@eslint/js': ^10.0.1
   # Both pages are styled from the same iOS palette, so the engine that turns it
@@ -43,7 +43,7 @@ catalog:
   prettier-plugin-organize-imports: ^4.3.0
   preact: ^10.29.8
   typescript-eslint: ^8.67.0
-  vite: ^8.2.1
+  vite: ^8.2.2
 
 # pnpm refuses to run a dependency's build script until it has been decided on,
 # and a fresh `pnpm install` exits non-zero while any decision is missing --
