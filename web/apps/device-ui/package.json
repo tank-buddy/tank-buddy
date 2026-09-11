@@ -46,7 +46,7 @@
     "typescript-eslint": "catalog:",
     "vite": "catalog:",
     "vite-plugin-compression2": "^2.5.3",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "vitest-browser-preact": "^1.0.0"
   },
   "msw": {
