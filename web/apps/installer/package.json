@@ -14,7 +14,7 @@
   "dependencies": {
     "@tank-buddy/tailwind-config": "workspace:*",
     "@tank-buddy/ui": "workspace:*",
-    "esp-web-tools": "^10.4.0",
+    "esp-web-tools": "^10.5.2",
     "preact": "catalog:",
     "tailwindcss": "catalog:"
   },
